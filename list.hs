@@ -352,14 +352,11 @@ dropWhileEnd_ p =
       | p x && null_ a = [] 
       | otherwise = x : a
 
--- This routine is a slightly-adapted splitAt_.
+-- XXX Traverses the prefix twice, but I don't see how to
+-- get the strictness right otherwise without an explicit
+-- recursion.
 span_ :: (a -> Bool) -> [a] -> ([a], [a])
-span_ p xs =
-  let ((_, r), l) = fold f ((True, xs), []) xs in (l, r)
-  where
-    f ((ok, l), r) x
-      | ok && p x && not (null l) = ((ok, tail_ l), x : r)
-      | otherwise = ((False, l), [])
+span_ p xs = (takeWhile_ p xs, dropWhile_ p xs)
 
 break_ :: (a -> Bool) -> [a] -> ([a], [a])
 break_ p = span_ (not . p)
@@ -376,7 +373,7 @@ stripPrefix_ xs ys =
 
 group_ :: Eq a => [a] -> [[a]]
 group_ xs =
-  unfoldr f xs
+  unfoldr_ f xs
   where
     f [] = Nothing
     f (x : xs) =
