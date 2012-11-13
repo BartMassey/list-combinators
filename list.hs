@@ -374,19 +374,14 @@ stripPrefix_ xs ys =
       | x == y = Just ys
       | otherwise = Nothing
 
--- XXX The strictness of this is no good: it tries to read
--- out the rightmost group before returning the left one. I
--- don't see how to fix this right now.
 group_ :: Eq a => [a] -> [[a]]
-group_ [] = []
 group_ xs =
-  foldr_ f [] xs
+  unfoldr f xs
   where
-    f x [] = [[x]]
-    f x ([] : gs) = [x] : gs
-    f x (g0@(g : _) : gs)
-      | x == g = (x : g0) : gs
-      | otherwise = [x] : g0 : gs
+    f [] = Nothing
+    f (x : xs) =
+      let (g, xs') = span_ (== x) xs in
+      Just (x : g, xs')
 
 -- Adapted from teh standard library.
 inits_ :: [a] -> [[a]]
