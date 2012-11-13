@@ -71,11 +71,26 @@ intersperse_ s xs = tail_ $ foldr_ (\x a -> s : x : a) [] xs
 intercalate_ :: [a] -> [[a]] -> [a]
 intercalate_ xs xss = concat_ (intersperse_ xs xss)
 
--- The use of an infinite undefined list to get everything
--- is weird.  This appears to be what it takes to get fold
--- to do the full semantics in one pass.
+-- The natural way to write transpose is as an unfold.
 transpose_ :: [[a]] -> [[a]]
 transpose_ xss =
+  unfoldr_ f xss
+  where
+    f a 
+      | null_ xs  = Nothing
+      | otherwise = 
+          Just (foldr_ g ([], []) xs)
+      where
+        xs = filter_ (not . null_) a
+        g (y : ys) (h, t) = (y : h, ys : t)
+
+-- The use of an infinite undefined list to get everything
+-- is weird.  This appears to be what it takes to get fold
+-- to do the full semantics in one pass. XXX There's a bug
+-- here having to do with null lists on input; Jamey Sharp
+-- pointed it out.
+transpose_0 :: [[a]] -> [[a]]
+transpose_0 xss =
   takeWhile_ (not . null_) $ snd $ fold f (xss, []) (repeat_ undefined)
   where
     f (l, r) _
@@ -243,12 +258,11 @@ mapAccumR_ f a0 =
       let (a', r') = f a x in
       (a', r' : rs)
 
--- As above, this is kind of grotesque.
 iterate_ :: (a -> a) -> a -> [a]
 iterate_ f x0 =
-  scanl_ f' x0 (repeat_ undefined)
+  unfoldr_ g x0
   where
-    f' x _ = f x
+    g x = Just (x, f x)
 
 repeat_ :: a -> [a]
 repeat_ x = cycle_ [x]
@@ -261,7 +275,8 @@ cycle_ :: [a] -> [a]
 cycle_ xs =
   let ys = xs `append_` ys in ys
 
--- The bogus invisible list cheeziness again.
+-- The invisible list cheeziness here is totally
+-- bogus. Arguably should just write unfoldr_ recursively.
 unfoldr_ :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr_ f a = 
   snd $ fold g (a, []) (repeat_ undefined)
@@ -270,6 +285,16 @@ unfoldr_ f a =
       case f l of
         Just (x, l') -> (l', x : r)
         Nothing -> (l, [])
+
+-- The recursive version.
+unfoldr_1 :: (b -> Maybe (a, b)) -> b -> [a]
+unfoldr_1 f a0 =
+  go a0 
+  where
+    go a = 
+      case f a of
+        Just (x, a') -> x : go a'
+        Nothing -> []
 
 -- This type is a generalization of the one in Data.List.
 take_ :: Integral b => b -> [a] -> [a]
@@ -453,16 +478,14 @@ partition_ p xs =
 -- Instead of (!!)
 elemAt_ :: Integral b => b -> [a] -> a
 elemAt_ n xs =
-  let Just x = lookup_ n (zip_ [1..] xs) in x
+  let Just x = lookup_ n (zip_ [0..] xs) in x
 
--- More infinite undefines nonsense.
 zip_ :: [a] -> [b] -> [(a, b)]
 zip_ xs1 xs2 =
-  snd $ fold f ((xs1, xs2), []) (repeat_ undefined)
+  unfoldr_ f (xs1, xs2)
   where
-    f :: (([a], [b]), [(a, b)]) -> c -> (([a], [b]), [(a, b)])
-    f ((l1 : l1s, l2 : l2s), r) _ = ((l1s, l2s), (l1, l2) : r)
-    f _ _ = (undefined, [])
+    f (l1 : l1s, l2 : l2s) = Just ((l1, l2), (l1s, l2s))
+    f _ = Nothing
 
 nub_ :: Eq a => [a] -> [a]
 nub_ =
