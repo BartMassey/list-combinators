@@ -1,4 +1,9 @@
 Copyright © 2011 Bart Massey, Jamey Sharp and Jules Kongslie
+
+This work is licensed under the "MIT License". Please see
+the file COPYING in the source distribution of this work for
+license terms.
+
 Generalized fold, with examples.
 
 This fold generalizes a number of things from

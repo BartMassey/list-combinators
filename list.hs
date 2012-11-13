@@ -1,3 +1,8 @@
+-- Copyright © 2012 Bart Massey
+-- [This program is licensed under the "MIT License"]
+-- Please see the file COPYING in the source
+-- distribution of this software for license terms.
+
 -- Replacement for Data.List using only one recursive
 -- function.  At this point this is a work-in-progress, with
 -- about 2/3 of the library translated, and a few weird
