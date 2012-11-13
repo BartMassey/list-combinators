@@ -41,7 +41,6 @@ tail_ :: [a] -> [a]
 tail_ (_ : xs) = xs
 
 init_ :: [a] -> [a]
--- init_ = reverse_ . tail_ . reverse_
 init_ xs =
   let Just ys = foldr_ f Nothing xs in ys
   where
@@ -71,7 +70,6 @@ intersperse_ s xs = tail_ $ foldr_ (\x a -> s : x : a) [] xs
 intercalate_ :: [a] -> [[a]] -> [a]
 intercalate_ xs xss = concat_ (intersperse_ xs xss)
 
--- The natural way to write transpose is as an unfold.
 transpose_ :: [[a]] -> [[a]]
 transpose_ xss =
   unfoldr_ f xss
@@ -213,14 +211,11 @@ maximum_ = foldl1'_ max
 minimum_ :: Ord a => [a] -> a
 minimum_ = foldl1'_ min
 
--- This and others should be rewritten to mapAccumL_.
 scanl_ :: (a -> b -> a) -> a -> [b] -> [a]
-scanl_ f z0 =
-  (z0 :) . snd . fold f' (z0, [])
+scanl_ f a0 =
+  (a0 :) . snd . mapAccumL_ g a0
   where
-    f' (z, rs) x =
-      let z' = z `f` x in
-      (z', z' : rs)
+    g a x = let a' = f a x in (a', a')
 
 scanl1_ :: (a -> a -> a) -> [a] -> [a]
 scanl1_ f (x : xs) = scanl_ f x xs
@@ -327,7 +322,7 @@ splitAt_ n0 xs =
 
 takeWhile_ :: (a -> Bool) -> [a] -> [a]
 takeWhile_ p xs =
-  foldr f [] xs
+  foldr_ f [] xs
   where
     f x a
       | p x = x : a
@@ -387,8 +382,8 @@ inits_ xs =
   where
     f x a = [] : map_ (x :) a
 
--- XXX More ickiness for termination. Even
--- has the required strictness property LOL.
+-- Funny termination. Even has the required strictness
+-- property LOL.
 tails_ :: [a] -> [[a]]
 tails_ xs =
   snd $ fold f (xs, [[]]) xs
