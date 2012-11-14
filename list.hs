@@ -352,11 +352,21 @@ dropWhileEnd_ p =
       | p x && null_ a = [] 
       | otherwise = x : a
 
--- XXX Traverses the prefix twice, but I don't see how to
--- get the strictness right otherwise without an explicit
--- recursion.
+-- XXX Traverses the prefix twice, but *so* much simpler and
+-- gets the strictness right.
 span_ :: (a -> Bool) -> [a] -> ([a], [a])
 span_ p xs = (takeWhile_ p xs, dropWhile_ p xs)
+
+-- XXX I can't make the strictness work here.
+span_1 :: (a -> Bool) -> [a] -> ([a], [a])
+span_1 p xs =
+  let (_, xs') = mapAccumL_ f True xs in
+  foldr_ g ([], []) xs'
+  where
+    f True x = let b = p x in (b, (b, x))
+    f False x = (False, (False, x))
+    g (True, x) (l, r) = (x : l, r)
+    g (False, x) (_, r) = ([], x : r)
 
 break_ :: (a -> Bool) -> [a] -> ([a], [a])
 break_ p = span_ (not . p)
