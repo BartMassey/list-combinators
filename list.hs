@@ -570,3 +570,10 @@ nub_ =
       | x `elem` l = (l, rs)
       | otherwise = (x : l, x : rs)
 
+delete_ :: Eq a => a -> [a] -> [a]
+delete_ t es =
+  snd $ fold f (True, []) es
+  where
+    f (l, r) x
+      | l && x == t = (False, r)
+      | otherwise = (l, x : r)
