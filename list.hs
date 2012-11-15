@@ -526,6 +526,18 @@ unzip4_ =
   where
     f (a, b, c, d) (as, bs, cs, ds) = (a : as, b : bs, c : cs, d : ds)
 
+lines_ :: String -> [String]
+lines_ "" = []
+lines_ s =
+  unfoldr_ f (Just s)
+  where
+    f Nothing = Nothing
+    f (Just cs) =
+      let (l, r) = break_ (== '\n') cs in
+      case r of
+        ('\n' : ls@(_ : _)) -> Just (l, Just ls)
+        _ -> Just (l, Nothing)
+
 nub_ :: Eq a => [a] -> [a]
 nub_ =
   snd . fold nub1 ([], [])
