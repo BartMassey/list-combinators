@@ -571,9 +571,20 @@ nub_ =
       | otherwise = (x : l, x : rs)
 
 delete_ :: Eq a => a -> [a] -> [a]
-delete_ t es =
+delete_ t es = deleteBy_ (==) t es
+
+-- Instead of (\\)
+listDiff_ :: Eq a => [a] -> [a] -> [a]
+listDiff_ xs ys = listDiffBy_ (==) xs ys
+
+deleteBy_ :: (a -> a -> Bool) -> a -> [a] -> [a]
+deleteBy_ p t es =
   snd $ fold f (True, []) es
   where
     f (l, r) x
-      | l && x == t = (False, r)
+      | l && p x t = (False, r)
       | otherwise = (l, x : r)
+
+listDiffBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+listDiffBy_ f xs ys = 
+  foldl_ (flip (deleteBy_ f)) xs ys
