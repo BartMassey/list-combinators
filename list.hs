@@ -612,6 +612,9 @@ intersect'_ = intersectBy'_ (==)
 merge :: Ord a => [a] -> [a] -> [a]
 merge = mergeBy compare
 
+sort_ :: Ord a => [a] -> [a]
+sort_ = sortBy_ compare
+
 -- There should be an elemBy. Why is there no elemBy?
 elemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
 elemBy_ p x0 xs = 
@@ -683,23 +686,29 @@ mergeBy c xs1 xs2 =
       | x1 `c` x2 == GT = Just (x2, (x1 : x1s, x2s))
       | otherwise = Just (x1, (x1s, x2 : x2s))
 
--- sortBy_ :: (a -> a -> Ordering) -> [a] -> [a]
--- sortBy_ c xs =
---   unfoldr_ f (map (: []) xs)
---   where
---     f [] = Nothing
---     f [xs] = Just -- HERE
--- 
--- -- Assume a list of sorted inputs. Merge adjacent pairs of
--- -- lists in the input to produce half as many sorted lists,
--- -- each twice as large.
--- sortStep :: (a -> a -> Ordering) -> [[a]] -> [[a]]
--- sortStep xss =
---   unfoldr_ g xss
---   where
---     g [] = Nothing
---     g [xs] = 
---       Just (xs, [])
---     g (xs1 : xs2 : xs) =
---       Just (mergeBy c xs1 xs2, xs)
--- 
+-- This seems to need the general power of folds
+-- to get its work done? It's a O(n log n) merge
+-- sort, although probably not as fast as the one
+-- in the standard library.
+sortBy_ :: (a -> a -> Ordering) -> [a] -> [a]
+sortBy_ c xs =
+  case fst $ folds f (map (: []) xs, undefined) of
+    [] -> []
+    [xs] -> xs
+  where
+    f ([], _) = ([], Nothing)
+    f ([xs], _) = ([xs], Nothing)
+    f (xss, _) = 
+      (sortStep xss, Just undefined)
+      where
+        -- Assume a list of sorted inputs. Merge adjacent
+        -- pairs of lists in the input to produce about half
+        -- as many sorted lists, each about twice as large.
+        sortStep xss =
+          unfoldr_ g xss
+          where
+            g [] = Nothing
+            g [xs] = 
+              Just (xs, [])
+            g (xs1 : xs2 : xs) =
+              Just (mergeBy c xs1 xs2, xs)
