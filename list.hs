@@ -555,6 +555,13 @@ words_ s =
             _ -> Just (l, Nothing)
         _ -> Just (l, Just r')
 
+unlines_ :: [String] -> String
+unlines_ [] = ""
+unlines_ ls = intercalate_ "\n" ls ++ "\n"
+
+unwords_ :: [String] -> String
+unwords_ ws = intercalate_ " " ws
+
 nub_ :: Eq a => [a] -> [a]
 nub_ =
   snd . fold nub1 ([], [])
