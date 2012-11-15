@@ -277,18 +277,27 @@ cycle_ :: [a] -> [a]
 cycle_ xs =
   let ys = xs `append_` ys in ys
 
--- The invisible list cheeziness here is totally
--- bogus. Arguably should just write unfoldr_ recursively.
+-- XXX The invisible list cheeziness here is totally
+-- bogus.
+unfold :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
+unfold f (l0, rs0) = 
+  fold g (l0, rs0) (repeat_ undefined)
+  where
+    g (l, rs) _ =
+      case f (l, rs) of
+        Just (r, (l', rs')) -> (l', r : rs')
+        Nothing -> (l, rs)
+
 unfoldr_ :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr_ f a = 
-  snd $ fold g (a, []) (repeat_ undefined)
+  snd $ unfold g (a, [])
   where
-    g (l, r) _ =
+    g (l, r) =
       case f l of
-        Just (x, l') -> (l', x : r)
-        Nothing -> (l, [])
+        Nothing -> Nothing
+        Just (x, l') -> Just (x, (l', r))
 
--- The recursive version.
+-- The straight recursive version.
 unfoldr_1 :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr_1 f a0 =
   go a0 
@@ -566,11 +575,23 @@ delete_ = deleteBy_ (==)
 listDiff_ :: Eq a => [a] -> [a] -> [a]
 listDiff_ = listDiffBy_ (==)
 
+listDiff'_ :: Eq a => [a] -> [a] -> [a]
+listDiff'_ = listDiffBy'_ (==)
+
 union_ :: Eq a => [a] -> [a] -> [a]
 union_ = unionBy_ (==)
 
 union'_ :: Eq a => [a] -> [a] -> [a]
 union'_ = unionBy'_ (==)
+
+intersect_ :: Eq a => [a] -> [a] -> [a]
+intersect_ = intersectBy_ (==)
+
+intersect'_ :: Eq a => [a] -> [a] -> [a]
+intersect'_ = intersectBy'_ (==)
+
+merge :: Ord a => [a] -> [a] -> [a]
+merge = mergeBy compare
 
 -- There should be an elemBy. Why is there no elemBy?
 elemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
@@ -603,13 +624,63 @@ listDiffBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 listDiffBy_ f xs ys = 
   foldl_ (flip (deleteBy_ f)) xs ys
 
+-- This definition of listDiffBy makes the result canonical
+-- on all inputs.
+listDiffBy'_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+listDiffBy'_ f xs ys = 
+  filter (\x -> notElemBy_ f x (nubBy_ f ys)) (nubBy_ f xs)
+
 unionBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 unionBy_ f xs ys =  
   xs ++ listDiffBy_ f (nubBy_ f ys) xs
 
--- The standard definition of unionBy_ is kinda gross; this
--- one makes the result canonical on all inputs.
+-- The standard definition of unionBy is maximally lazy:
+-- this one makes the result canonical on all inputs.
 unionBy'_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 unionBy'_ f xs ys =
   let xs' = nubBy_ f xs in
   xs' ++ listDiffBy_ f (nubBy_ f ys) xs'
+
+intersectBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+intersectBy_ f xs ys =  
+  filter_ (\x -> elemBy_ f x ys) xs
+
+-- This definition of intersectBy makes the result canonical
+-- on all inputs.
+intersectBy'_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+intersectBy'_ f xs ys =  
+  filter_ (\x -> elemBy_ f x (nubBy_ f ys)) (nubBy_ f xs)
+
+
+-- This should be in the standard library anyhow.
+mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
+mergeBy c xs1 xs2 =
+  unfoldr_ f (xs1, xs2)
+  where
+    f ([], []) = Nothing
+    f ([], x2 : x2s) = Just (x2, ([], x2s))
+    f (x1 : x1s, []) = Just (x1, (x1s, []))
+    f (x1 : x1s, x2 : x2s)
+      | x1 `c` x2 == GT = Just (x2, (x1 : x1s, x2s))
+      | otherwise = Just (x1, (x1s, x2 : x2s))
+
+-- sortBy_ :: (a -> a -> Ordering) -> [a] -> [a]
+-- sortBy_ c xs =
+--   unfoldr_ f (map (: []) xs)
+--   where
+--     f [] = Nothing
+--     f [xs] = Just -- HERE
+-- 
+-- -- Assume a list of sorted inputs. Merge adjacent pairs of
+-- -- lists in the input to produce half as many sorted lists,
+-- -- each twice as large.
+-- sortStep :: (a -> a -> Ordering) -> [[a]] -> [[a]]
+-- sortStep xss =
+--   unfoldr_ g xss
+--   where
+--     g [] = Nothing
+--     g [xs] = 
+--       Just (xs, [])
+--     g (xs1 : xs2 : xs) =
+--       Just (mergeBy c xs1 xs2, xs)
+-- 
