@@ -482,12 +482,31 @@ elemAt_ :: Integral b => b -> [a] -> a
 elemAt_ n xs =
   let Just x = lookup_ n (zip_ [0..] xs) in x
 
+-- This idea comes from the standard library.
+
 zip_ :: [a] -> [b] -> [(a, b)]
-zip_ xs1 xs2 =
-  unfoldr_ f (xs1, xs2)
+zip_ =  zipWith_ (,)
+
+zip3_ :: [a] -> [b] -> [c] -> [(a, b, c)]
+zip3_ =  zipWith3_ (,,)
+
+zip4_ :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
+zip4_ =  zipWith4_ (,,,)
+
+-- No, I don't believe anyone uses higher-arity zips, so there.
+
+zipWith_ :: (a -> b -> c) -> [a] -> [b] -> [c]
+zipWith_ f xs1 xs2 =
+  unfoldr_ g (xs1, xs2)
   where
-    f (l1 : l1s, l2 : l2s) = Just ((l1, l2), (l1s, l2s))
-    f _ = Nothing
+    g (l1 : l1s, l2 : l2s) = Just (f l1 l2, (l1s, l2s))
+    g _ = Nothing
+
+zipWith3_ :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
+zipWith3_ f xs1 xs2 = zipWith_ ($) (zipWith_ f xs1 xs2)
+
+zipWith4_ :: (a -> b -> c -> d -> e) -> [a] -> [b] -> [c] -> [d] -> [e]
+zipWith4_ f xs1 xs2 xs3 = zipWith_ ($) (zipWith3_ f xs1 xs2 xs3)
 
 nub_ :: Eq a => [a] -> [a]
 nub_ =
