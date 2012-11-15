@@ -8,6 +8,8 @@
 -- about 2/3 of the library translated, and a few weird
 -- inefficiencies and holes.
 
+import Data.Char (isSpace)
+
 fold :: ((l, r) -> x -> (l, r)) -> (l, r) -> [x] -> (l, r)
 fold _ lr [] = lr
 fold f (l, r) (x : xs) =
@@ -537,6 +539,21 @@ lines_ s =
       case r of
         ('\n' : ls@(_ : _)) -> Just (l, Just ls)
         _ -> Just (l, Nothing)
+
+words_ :: String -> [String]
+words_ s =
+  unfoldr_ f (Just s)
+  where
+    f Nothing = Nothing
+    f (Just cs) =
+      let (_, r) = span_ isSpace cs in
+      let (l, r') = break_ isSpace r in
+      case r' of
+        "" -> 
+          case l of
+            "" -> Nothing
+            _ -> Just (l, Nothing)
+        _ -> Just (l, Just r')
 
 nub_ :: Eq a => [a] -> [a]
 nub_ =
