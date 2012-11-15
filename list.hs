@@ -277,10 +277,29 @@ cycle_ :: [a] -> [a]
 cycle_ xs =
   let ys = xs `append_` ys in ys
 
--- XXX The invisible list cheeziness here is totally
--- bogus.
+-- This generalized fold may be enough to write fold?
+folds :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
+folds f (l, r) =
+  let (l1, mr1) = f (l, r2)
+      (l2, r2) = folds f (l1, r) in
+  case mr1 of
+    Nothing -> (l1, r)
+    Just r1 -> (l2, r1)
+
 unfold :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
 unfold f (l0, rs0) = 
+  folds g (l0, rs0)
+  where
+    g (l, rs) =
+      case f (l, rs) of
+        Just (r, (l', rs')) -> (l', Just (r : rs'))
+        Nothing -> (l, Nothing)
+
+-- XXX This avoids using the recursive folds or explicit
+-- recursion, but the invisible list cheeziness here is
+-- totally bogus.
+unfold1 :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
+unfold1 f (l0, rs0) = 
   fold g (l0, rs0) (repeat_ undefined)
   where
     g (l, rs) _ =
