@@ -436,16 +436,10 @@ isInfixOf_ :: Eq a => [a] -> [a] -> Bool
 isInfixOf_ xs ys = any_ (isPrefixOf_ xs) (tails_ ys)
 
 elem_ :: Eq a => a -> [a] -> Bool
-elem_ x0 xs = 
-  foldr_ f False xs
-  where
-    f x a = x == x0 || a
+elem_ = elemBy_ (==)
 
 notElem_ :: Eq a => a -> [a] -> Bool
-notElem_ x0 xs =
-  foldr_ f True xs
-  where
-    f x a = x /= x0 && a
+notElem_ x0 = not . elem_ x0
   
 lookup_ :: Eq a => a -> [(a, b)] -> Maybe b
 lookup_ x0 xs =
@@ -563,19 +557,39 @@ unwords_ :: [String] -> String
 unwords_ ws = intercalate_ " " ws
 
 nub_ :: Eq a => [a] -> [a]
-nub_ =
-  snd . fold nub1 ([], [])
-  where
-    nub1 (l, rs) x
-      | x `elem` l = (l, rs)
-      | otherwise = (x : l, x : rs)
+nub_ = nubBy_ (==)
 
 delete_ :: Eq a => a -> [a] -> [a]
-delete_ t es = deleteBy_ (==) t es
+delete_ = deleteBy_ (==)
 
 -- Instead of (\\)
 listDiff_ :: Eq a => [a] -> [a] -> [a]
-listDiff_ xs ys = listDiffBy_ (==) xs ys
+listDiff_ = listDiffBy_ (==)
+
+union_ :: Eq a => [a] -> [a] -> [a]
+union_ = unionBy_ (==)
+
+union'_ :: Eq a => [a] -> [a] -> [a]
+union'_ = unionBy'_ (==)
+
+-- There should be an elemBy. Why is there no elemBy?
+elemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
+elemBy_ p x0 xs = 
+  foldr_ f False xs
+  where
+    f x a = p x x0 || a
+
+-- OTOH, why is there a notElem? Did we really need that?
+notElemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
+notElemBy_ p x0 = not . elemBy_ p x0
+
+nubBy_ :: (a -> a -> Bool) -> [a] -> [a]
+nubBy_ f =
+  snd . fold g ([], [])
+  where
+    g (l, rs) x
+      | elemBy_ f x l = (l, rs)
+      | otherwise = (x : l, x : rs)
 
 deleteBy_ :: (a -> a -> Bool) -> a -> [a] -> [a]
 deleteBy_ p t es =
@@ -588,3 +602,14 @@ deleteBy_ p t es =
 listDiffBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 listDiffBy_ f xs ys = 
   foldl_ (flip (deleteBy_ f)) xs ys
+
+unionBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+unionBy_ f xs ys =  
+  xs ++ listDiffBy_ f (nubBy_ f ys) xs
+
+-- The standard definition of unionBy_ is kinda gross; this
+-- one makes the result canonical on all inputs.
+unionBy'_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+unionBy'_ f xs ys =
+  let xs' = nubBy_ f xs in
+  xs' ++ listDiffBy_ f (nubBy_ f ys) xs'
