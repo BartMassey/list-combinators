@@ -508,6 +508,24 @@ zipWith3_ f xs1 xs2 = zipWith_ ($) (zipWith_ f xs1 xs2)
 zipWith4_ :: (a -> b -> c -> d -> e) -> [a] -> [b] -> [c] -> [d] -> [e]
 zipWith4_ f xs1 xs2 xs3 = zipWith_ ($) (zipWith3_ f xs1 xs2 xs3)
 
+unzip_ :: [(a, b)] -> ([a], [b])
+unzip_ = 
+  foldr_ f ([], [])
+  where
+    f (a, b) (as, bs) = (a : as, b : bs)
+
+unzip3_ :: [(a, b, c)] -> ([a], [b], [c])
+unzip3_ = 
+  foldr_ f ([], [], [])
+  where
+    f (a, b, c) (as, bs, cs) = (a : as, b : bs, c : cs)
+
+unzip4_ :: [(a, b, c, d)] -> ([a], [b], [c], [d])
+unzip4_ = 
+  foldr_ f ([], [], [], [])
+  where
+    f (a, b, c, d) (as, bs, cs, ds) = (a : as, b : bs, c : cs, d : ds)
+
 nub_ :: Eq a => [a] -> [a]
 nub_ =
   snd . fold nub1 ([], [])
