@@ -213,7 +213,7 @@ product_ :: (Num a) => [a] -> a
 product_ = foldl (*) 1
 
 maximum_ :: Ord a => [a] -> a
-maximum_ = foldl1'_ max 
+maximum_ = foldl1'_ max
 
 minimum_ :: Ord a => [a] -> a
 minimum_ = foldl1'_ min
@@ -739,3 +739,19 @@ insertBy'_ :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy'_ c t xs =
   let (l, r) = span_ ((== GT) . c t) xs in
   l ++ [t] ++ r
+
+maximumBy_ :: (a -> a -> Ordering) -> [a] -> a
+maximumBy_ c xs = 
+  foldl1'_ f xs
+  where
+    x1 `f` x2
+      | x1 `c` x2 == LT = x2
+      | otherwise = x1
+
+minimumBy_ :: (a -> a -> Ordering) -> [a] -> a
+minimumBy_ c xs = 
+  foldl1'_ f xs
+  where
+    x1 `f` x2
+      | x1 `c` x2 == GT = x2
+      | otherwise = x1
