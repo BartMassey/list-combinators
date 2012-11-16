@@ -624,12 +624,10 @@ insert_ = insertBy_ compare
 insert'_ :: Ord a => a -> [a] -> [a]
 insert'_ = insertBy'_ compare
 
--- There should be an elemBy. Why is there no elemBy?
+-- There should be an elemBy. Yes, it's just
+-- "any", but still...
 elemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
-elemBy_ p x0 xs = 
-  foldr_ f False xs
-  where
-    f x a = p x x0 || a
+elemBy_ p x0 xs =  any (p x0) xs
 
 -- OTOH, why is there a notElem? Did we really need that?
 notElemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
