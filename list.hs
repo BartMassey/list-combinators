@@ -615,6 +615,12 @@ merge = mergeBy compare
 sort_ :: Ord a => [a] -> [a]
 sort_ = sortBy_ compare
 
+insert_ :: Ord a => a -> [a] -> [a]
+insert_ = insertBy_ compare
+
+insert'_ :: Ord a => a -> [a] -> [a]
+insert'_ = insertBy'_ compare
+
 -- There should be an elemBy. Why is there no elemBy?
 elemBy_ :: (a -> a -> Bool) -> a -> [a] -> Bool
 elemBy_ p x0 xs = 
@@ -712,3 +718,24 @@ sortBy_ c xs =
               Just (xs, [])
             g (xs1 : xs2 : xs) =
               Just (mergeBy c xs1 xs2, xs)
+
+-- This version of InsertBy actually follows
+-- the contract from the documentation.
+insertBy_ :: (a -> a -> Ordering) -> a -> [a] -> [a]
+insertBy_ c t xs0 =
+  unfoldr_ f (Left xs0)
+  where
+    f (Right []) = Nothing
+    f (Right (x : xs)) = Just (x, Right xs)
+    f (Left []) = Just (t, Right [])
+    f (Left (x : xs))
+      | t `c` x == GT = Just (x, Right xs)
+      | otherwise = Just (t, Left (x : xs))
+
+-- XXX This version of InsertBy agrees with the standard
+-- library, which seems to insert in the first possible
+-- location rather than the last.
+insertBy'_ :: (a -> a -> Ordering) -> a -> [a] -> [a]
+insertBy'_ c t xs =
+  let (l, r) = span_ ((== GT) . c t) xs in
+  l ++ [t] ++ r
