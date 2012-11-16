@@ -58,10 +58,13 @@ null_ :: [a] -> Bool
 null_ [] = True
 null_  _ = False
 
+length_ :: [a] -> Int
+length_ xs = genericLength xs
+
 -- This type is changed from Data.List to cope with
 -- very long lists.
-length_ :: [a] -> Integer
-length_ xs = foldl'_ (\a _ -> a + 1) 0 xs
+length'_ :: [a] -> Integer
+length'_ xs = genericLength xs
 
 map_ :: (a -> b) -> [a] -> [b]
 map_ f xs = foldr_ (\x a -> f x : a) [] xs
@@ -502,8 +505,8 @@ partition_ p xs =
       | otherwise = (l, x : r)
 
 -- Instead of (!!)
-elemAt_ :: Integral b => b -> [a] -> a
-elemAt_ n xs =
+index_ :: Integral b => b -> [a] -> a
+index_ n xs =
   let Just x = lookup_ n (zip_ [0..] xs) in x
 
 -- This idea comes from the standard library.
@@ -755,3 +758,9 @@ minimumBy_ c xs =
     x1 `f` x2
       | x1 `c` x2 == GT = x2
       | otherwise = x1
+
+-- The rest of the functions are already generic,
+-- because why not? Length not so much, since one
+-- tends to use it to anchor type constraints.
+genericLength :: Num a => [b] -> a
+genericLength xs = foldl'_ (\a _ -> a + 1) 0 xs
