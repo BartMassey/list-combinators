@@ -8,6 +8,67 @@
 -- work-in-progress, with the entire library translated, but
 -- with a few weird inefficiencies and holes.
 
+module Data.List.Combinator (
+  fold,
+  foldl_,
+  foldl'_,
+  foldr_,
+  init_,
+  transpose_,
+  subsequences_,
+  insertions,
+  permutations_,
+  foldr1_,
+  concatMap_,
+  scanl_,
+  scanr_,
+  scanr1_,
+  mapAccumL_,
+  mapAccumR_,
+  iterate_,
+  cycle_,
+  folds,
+  unfold,
+  unfold1,
+  unfoldr_,
+  take_,
+  drop_,
+  splitAt_,
+  takeWhile_,
+  dropWhile_,
+  dropWhileEnd_,
+  stripPrefix_,
+  group_,
+  inits_,
+  tails_,
+  isPrefixOf_,
+  isSuffixOf_,
+  lookup_,
+  find_,
+  filter_,
+  partition_,
+  index_,
+  zipWith_,
+  unzip_,
+  unzip3_,
+  unzip4_,
+  lines_,
+  words_,
+  nubBy_,
+  deleteBy_,
+  listDiffBy_,
+  listDiffBy'_,
+  unionBy_,
+  unionBy'_,
+  intersectBy_,
+  intersectBy'_,
+  mergeBy,
+  sortBy_,
+  insertBy_,
+  insertBy'_,
+  maximumBy_,
+  minimumBy_ ) where
+
 import Data.Char (isSpace)
 
 fold :: (x -> (l, r) -> (l, r)) -> (l, r) -> [x] -> (l, r)
@@ -21,19 +82,19 @@ fold f lr0 xs0 =
       (l2, r1)
 
 foldl_ :: (a -> b -> a) -> a -> [b] -> a
-foldl_ f a0 = 
+foldl_ f a0 =
   fst . fold f' (a0, undefined)
   where
     f' x (l, r) = (f l x, r)
 
 foldl'_ :: (a -> b -> a) -> a -> [b] -> a
-foldl'_ f a0 = 
+foldl'_ f a0 =
   fst . fold f' (a0, undefined)
   where
     f' x (l, r) = ((f $! l) $! x, r)
 
 foldr_ :: (a -> b -> b) -> b -> [a] -> b
-foldr_ f b0 = 
+foldr_ f b0 =
   snd . fold f' (undefined, b0)
   where
     f' x (l, r) = (l, f x r)
@@ -51,8 +112,8 @@ tail_ :: [a] -> [a]
 tail_ (_ : xs) = xs
 
 init_ :: [a] -> [a]
-init_ xs =
-  let Just ys = foldr_ f Nothing xs in ys
+init_ xs0 =
+  let Just ys = foldr_ f Nothing xs0 in ys
   where
     f _ Nothing = Just []
     f x (Just xs) = Just (x : xs)
@@ -89,7 +150,7 @@ transpose_ xss =
   where
     f a 
       | null_ xs  = Nothing
-      | otherwise = 
+      | otherwise =
           Just (foldr_ g ([], []) xs)
       where
         xs = filter_ (not . null_) a
@@ -148,10 +209,10 @@ transpose_3 (xs : xss) =
 -- to be what it takes to use foldr instead of fold.
 transpose_4 :: [[a]] -> [[a]]
 transpose_4 [] = []
-transpose_4 (xs : xss) = 
+transpose_4 (xs : xss) =
   reverse $ fst $ foldl_ f ([], xss) xs
   where
-    f (ts, us) x = 
+    f (ts, us) x =
       ((x : map_ head_ us) : ts, filter_ (not . null_) $ map_ tail_ us)
 
 subsequences_ :: [a] -> [[a]]
@@ -181,7 +242,7 @@ foldl1'_ :: (a -> a -> a) -> [a] -> a
 foldl1'_ f (x : xs) = foldl'_ f x xs 
 
 foldr1_ :: (a -> a -> a) -> [a] -> a
-foldr1_ f xs = 
+foldr1_ f xs =
   let Just y = foldr_ g Nothing xs in y
   where
     g x Nothing = Just x
@@ -293,7 +354,7 @@ folds f (l, r) =
     Just r1 -> (l2, r1)
 
 unfold :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
-unfold f (l0, rs0) = 
+unfold f (l0, rs0) =
   folds g (l0, rs0)
   where
     g (l, rs) =
@@ -305,7 +366,7 @@ unfold f (l0, rs0) =
 -- recursion, but the invisible list cheeziness here is
 -- totally bogus.
 unfold1 :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
-unfold1 f (l0, rs0) = 
+unfold1 f (l0, rs0) =
   fold g (l0, rs0) (repeat_ undefined)
   where
     g _ (l, rs) =
@@ -314,7 +375,7 @@ unfold1 f (l0, rs0) =
         Nothing -> (l, rs)
 
 unfoldr_ :: (b -> Maybe (a, b)) -> b -> [a]
-unfoldr_ f a = 
+unfoldr_ f a =
   snd $ unfold g (a, [])
   where
     g (l, r) =
@@ -327,7 +388,7 @@ unfoldr_1 :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr_1 f a0 =
   go a0 
   where
-    go a = 
+    go a =
       case f a of
         Just (x, a') -> x : go a'
         Nothing -> []
@@ -408,18 +469,18 @@ break_ :: (a -> Bool) -> [a] -> ([a], [a])
 break_ p = span_ (not . p)
 
 stripPrefix_  :: Eq a => [a] -> [a] -> Maybe [a]
-stripPrefix_ xs ys = 
-  foldl_ f (Just ys) xs
+stripPrefix_ xs ys0 =
+  foldl_ f (Just ys0) xs
   where
-    f Nothing x = Nothing
-    f (Just []) x = Nothing
+    f Nothing _ = Nothing
+    f (Just []) _ = Nothing
     f (Just (y : ys)) x
       | x == y = Just ys
       | otherwise = Nothing
 
 group_ :: Eq a => [a] -> [[a]]
-group_ xs =
-  unfoldr_ f xs
+group_ xs0 =
+  unfoldr_ f xs0
   where
     f [] = Nothing
     f (x : xs) =
@@ -452,9 +513,9 @@ isPrefixOf_ xs ys =
 -- separately to reverse it, but I don't see how to fix
 -- this.
 isSuffixOf_ :: Eq a => [a] -> [a] -> Bool
-isSuffixOf_ xs ys = 
+isSuffixOf_ xs ys =
   case foldr_ f (Just (reverse ys)) xs of
-    Just x -> True
+    Just _ -> True
     Nothing -> False
   where
     f _ Nothing = Nothing
@@ -539,19 +600,19 @@ zipWith4_ :: (a -> b -> c -> d -> e) -> [a] -> [b] -> [c] -> [d] -> [e]
 zipWith4_ f xs1 xs2 xs3 = zipWith_ ($) (zipWith3_ f xs1 xs2 xs3)
 
 unzip_ :: [(a, b)] -> ([a], [b])
-unzip_ = 
+unzip_ =
   foldr_ f ([], [])
   where
     f (a, b) (as, bs) = (a : as, b : bs)
 
 unzip3_ :: [(a, b, c)] -> ([a], [b], [c])
-unzip3_ = 
+unzip3_ =
   foldr_ f ([], [], [])
   where
     f (a, b, c) (as, bs, cs) = (a : as, b : bs, c : cs)
 
 unzip4_ :: [(a, b, c, d)] -> ([a], [b], [c], [d])
-unzip4_ = 
+unzip4_ =
   foldr_ f ([], [], [], [])
   where
     f (a, b, c, d) (as, bs, cs, ds) = (a : as, b : bs, c : cs, d : ds)
@@ -653,17 +714,17 @@ deleteBy_ p t es =
       | otherwise = (l, x : r)
 
 listDiffBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-listDiffBy_ f xs ys = 
+listDiffBy_ f xs ys =
   foldl_ (flip (deleteBy_ f)) xs ys
 
 -- This definition of listDiffBy makes the result canonical
 -- on all inputs.
 listDiffBy'_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-listDiffBy'_ f xs ys = 
+listDiffBy'_ f xs ys =
   filter (\x -> notElemBy_ f x (nubBy_ f ys)) (nubBy_ f xs)
 
 unionBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-unionBy_ f xs ys =  
+unionBy_ f xs ys =
   xs ++ listDiffBy_ f (nubBy_ f ys) xs
 
 -- The standard definition of unionBy is maximally lazy:
@@ -674,13 +735,13 @@ unionBy'_ f xs ys =
   xs' ++ listDiffBy_ f (nubBy_ f ys) xs'
 
 intersectBy_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-intersectBy_ f xs ys =  
+intersectBy_ f xs ys =
   filter_ (\x -> elemBy_ f x ys) xs
 
 -- This definition of intersectBy makes the result canonical
 -- on all inputs.
 intersectBy'_ :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-intersectBy'_ f xs ys =  
+intersectBy'_ f xs ys =
   filter_ (\x -> elemBy_ f x (nubBy_ f ys)) (nubBy_ f xs)
 
 
@@ -701,24 +762,24 @@ mergeBy c xs1 xs2 =
 -- sort, although probably not as fast as the one
 -- in the standard library.
 sortBy_ :: (a -> a -> Ordering) -> [a] -> [a]
-sortBy_ c xs =
-  case fst $ folds f (map (: []) xs, undefined) of
+sortBy_ c xs0 =
+  case fst $ folds f (map (: []) xs0, undefined) of
     [] -> []
     [xs] -> xs
   where
     f ([], _) = ([], Nothing)
     f ([xs], _) = ([xs], Nothing)
-    f (xss, _) = 
-      (sortStep xss, Just undefined)
+    f (xss, _) =
+      (sortStep, Just undefined)
       where
         -- Assume a list of sorted inputs. Merge adjacent
         -- pairs of lists in the input to produce about half
         -- as many sorted lists, each about twice as large.
-        sortStep xss =
+        sortStep =
           unfoldr_ g xss
           where
             g [] = Nothing
-            g [xs] = 
+            g [xs] =
               Just (xs, [])
             g (xs1 : xs2 : xs) =
               Just (mergeBy c xs1 xs2, xs)
@@ -731,7 +792,7 @@ sortBy_ c xs =
 insertBy_ :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy_ c t xs0 =
   let (xs1, xs2) = span_ (\x -> t `c` x /= LT) xs0 in
-  let xs2' = 
+  let xs2' =
         case foldr_ f (Left []) xs2 of
           Left xs -> t : xs
           Right xs -> xs in
@@ -752,7 +813,7 @@ insertBy'_ c t xs =
   l ++ [t] ++ r
 
 maximumBy_ :: (a -> a -> Ordering) -> [a] -> a
-maximumBy_ c xs = 
+maximumBy_ c xs =
   foldl1'_ f xs
   where
     x1 `f` x2
@@ -760,7 +821,7 @@ maximumBy_ c xs =
       | otherwise = x1
 
 minimumBy_ :: (a -> a -> Ordering) -> [a] -> a
-minimumBy_ c xs = 
+minimumBy_ c xs =
   foldl1'_ f xs
   where
     x1 `f` x2
