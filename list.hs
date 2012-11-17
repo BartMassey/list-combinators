@@ -10,30 +10,33 @@
 
 import Data.Char (isSpace)
 
-fold :: ((l, r) -> x -> (l, r)) -> (l, r) -> [x] -> (l, r)
-fold _ lr [] = lr
-fold f (l, r) (x : xs) =
-  let (l1, r1) = f (l, r2) x
-      (l2, r2) = fold f (l1, r) xs in
-  (l2, r1)
+fold :: (x -> (l, r) -> (l, r)) -> (l, r) -> [x] -> (l, r)
+fold f lr0 xs0 =
+  g lr0 xs0
+  where
+    g lr [] = lr
+    g (l, r) (x : xs) =
+      let (l1, r1) = f x (l, r2)
+          (l2, r2) = g (l1, r) xs  in
+      (l2, r1)
 
 foldl_ :: (a -> b -> a) -> a -> [b] -> a
 foldl_ f a0 = 
   fst . fold f' (a0, undefined)
   where
-    f' (l, r) x = (f l x, r)
+    f' x (l, r) = (f l x, r)
 
 foldl'_ :: (a -> b -> a) -> a -> [b] -> a
 foldl'_ f a0 = 
   fst . fold f' (a0, undefined)
   where
-    f' (l, r) x = ((f $! l) $! x, r)
+    f' x (l, r) = ((f $! l) $! x, r)
 
 foldr_ :: (a -> b -> b) -> b -> [a] -> b
 foldr_ f b0 = 
   snd . fold f' (undefined, b0)
   where
-    f' (l, r) x = (l, f x r)
+    f' x (l, r) = (l, f x r)
 
 append_ :: [a] -> [a] -> [a]
 xs `append_` ys = foldr_ (:) ys xs
@@ -101,7 +104,7 @@ transpose_0 :: [[a]] -> [[a]]
 transpose_0 xss =
   takeWhile_ (not . null_) $ snd $ fold f (xss, []) (repeat_ undefined)
   where
-    f (l, r) _
+    f _ (l, r)
       | null_ rest = (rest, [first])
       | otherwise = (rest, first : r)
       where
@@ -122,7 +125,7 @@ transpose_2 :: [[a]] -> [[a]]
 transpose_2 xss =
   snd $ fold f (xss, []) [1 .. maximum_ (map_ length_ xss)]
   where
-    f (l, r) _ =
+    f _ (l, r) =
       (filter_ (not . null_) $ map_ tail_ l, map_ head_ l : r)
 
 -- This version of transpose will drop elements from the
@@ -135,7 +138,7 @@ transpose_3 :: [[a]] -> [[a]]
 transpose_3 (xs : xss) =
   snd $ fold f (xss, []) xs
   where
-    f (l, r) x =
+    f x (l, r) =
       (filter_ (not . null_) $ map_ tail_ l, (x : map_ head_ l) : r)
 
 -- This version of transpose will drop elements from the
@@ -251,7 +254,7 @@ mapAccumL_ :: (a -> b -> (a, c)) -> a -> [b] -> (a, [c])
 mapAccumL_ f a0 =
   fold f' (a0, [])
   where
-    f' (l, rs) x =
+    f' x (l, rs) =
       let (l', r') = f l x in
       (l', r' : rs)
 
@@ -305,7 +308,7 @@ unfold1 :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
 unfold1 f (l0, rs0) = 
   fold g (l0, rs0) (repeat_ undefined)
   where
-    g (l, rs) _ =
+    g _ (l, rs) =
       case f (l, rs) of
         Just (r, (l', rs')) -> (l', r : rs')
         Nothing -> (l, rs)
@@ -334,8 +337,8 @@ take_ :: Integral b => b -> [a] -> [a]
 take_ n0 =
   snd . fold take1 (n0, [])
   where
-    take1 (0, _) _ = (undefined, [])
-    take1 (n, rs) r | n > 0 = (n - 1, r : rs)
+    take1 _ (0, _) = (undefined, [])
+    take1 r (n, rs) | n > 0 = (n - 1, r : rs)
     take1 _ _ = error "take with negative count"
 
 -- This type is a generalization of the one in Data.List.
@@ -343,8 +346,8 @@ drop_ :: Integral b => b -> [a] -> [a]
 drop_ n0 =
   snd . fold drop1 (n0, [])
   where
-    drop1 (0, rs) r = (0, r : rs)
-    drop1 (n, rs) _ | n > 0 = (n - 1, rs)
+    drop1 r (0, rs) = (0, r : rs)
+    drop1 _ (n, rs) | n > 0 = (n - 1, rs)
     drop1 _ _ = error "drop with negative count"
 
 -- This type is a generalization of the one in Data.List.
@@ -354,7 +357,7 @@ splitAt_ :: Integral b => b -> [a] -> ([a], [a])
 splitAt_ n0 xs =
   let ((_, r), l) = fold f ((0, xs), []) xs in (l, r)
   where
-    f ((n, l), r) x
+    f x ((n, l), r)
       | n >= n0 || null_ l = ((n, l), [])
       | otherwise = ((n + 1, tail_ l), x : r)
 
@@ -371,7 +374,7 @@ dropWhile_ :: (a -> Bool) -> [a] -> [a]
 dropWhile_ p xs =
   snd $ fold f (True, []) xs
   where
-    f (l, r) x
+    f x (l, r)
       | l && p x = (True, r)
       | otherwise = (False, x : r)
 
@@ -436,7 +439,7 @@ tails_ :: [a] -> [[a]]
 tails_ xs =
   snd $ fold f (xs, [[]]) xs
   where
-    f (y@(_ : ys), r) _ = (ys, y : r)
+    f _ (y@(_ : ys), r) = (ys, y : r)
 
 
 isPrefixOf_ :: Eq a => [a] -> [a] -> Bool
@@ -637,7 +640,7 @@ nubBy_ :: (a -> a -> Bool) -> [a] -> [a]
 nubBy_ f =
   snd . fold g ([], [])
   where
-    g (l, rs) x
+    g x (l, rs)
       | elemBy_ f x l = (l, rs)
       | otherwise = (x : l, x : rs)
 
@@ -645,7 +648,7 @@ deleteBy_ :: (a -> a -> Bool) -> a -> [a] -> [a]
 deleteBy_ p t es =
   snd $ fold f (True, []) es
   where
-    f (l, r) x
+    f x (l, r)
       | l && p x t = (False, r)
       | otherwise = (l, x : r)
 
