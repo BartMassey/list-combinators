@@ -3,10 +3,10 @@
 -- Please see the file COPYING in the source
 -- distribution of this software for license terms.
 
--- Replacement for Data.List using only one recursive
--- function.  At this point this is a work-in-progress, with
--- about 2/3 of the library translated, and a few weird
--- inefficiencies and holes.
+-- Replacement for Data.List using only a couple of
+-- recursive functions.  At this point this is a
+-- work-in-progress, with the entire library translated, but
+-- with a few weird inefficiencies and holes.
 
 import Data.Char (isSpace)
 
