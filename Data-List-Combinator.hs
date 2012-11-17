@@ -264,13 +264,10 @@ all_ p = and_ . map_ p
 
 -- XXX This should be spine-strict using foldl', but this
 -- is not allowed by the Standard (according to the GHC
--- folks).
+-- folks), because of some kind of "numbers"?
 sum_ :: (Num a) => [a] -> a
 sum_ = foldl (+) 0
 
--- XXX This should be spine-strict using foldl', but this
--- is not allowed by the Standard (according to the GHC
--- folks).
 product_ :: (Num a) => [a] -> a
 product_ = foldl (*) 1
 
@@ -418,21 +415,10 @@ splitAt_ n0 xs =
       | otherwise = ((n + 1, tail_ l), x : r)
 
 takeWhile_ :: (a -> Bool) -> [a] -> [a]
-takeWhile_ p xs =
-  foldr_ f [] xs
-  where
-    f x a
-      | p x = x : a
-      | otherwise = []
+takeWhile_ p xs = fst $ span_ p xs
 
--- XXX Is this efficient? It appears to be lazy...
 dropWhile_ :: (a -> Bool) -> [a] -> [a]
-dropWhile_ p xs =
-  snd $ fold f (True, []) xs
-  where
-    f x (l, r)
-      | l && p x = (True, r)
-      | otherwise = (False, x : r)
+dropWhile_ p xs = snd $ span_ p xs
 
 -- Weird new list function, but OK. Definition taken from
 -- the standard library and cleaned up a bit.
@@ -444,21 +430,13 @@ dropWhileEnd_ p =
       | p x && null_ a = [] 
       | otherwise = x : a
 
--- XXX Traverses the prefix twice, but *so* much simpler and
--- gets the strictness right.
 span_ :: (a -> Bool) -> [a] -> ([a], [a])
-span_ p xs = (takeWhile_ p xs, dropWhile_ p xs)
-
--- XXX I can't make the strictness work here.
-span_1 :: (a -> Bool) -> [a] -> ([a], [a])
-span_1 p xs =
-  let (_, xs') = mapAccumL_ f True xs in
-  foldr_ g ([], []) xs'
+span_ p xs =
+  foldr_ f ([], []) xs
   where
-    f True x = let b = p x in (b, (b, x))
-    f False x = (False, (False, x))
-    g (True, x) (l, r) = (x : l, r)
-    g (False, x) (_, r) = ([], x : r)
+    f x ~(l, r)
+      | p x = (x : l, r)
+      | otherwise = ([], x : r)
 
 break_ :: (a -> Bool) -> [a] -> ([a], [a])
 break_ p = span_ (not . p)
@@ -559,7 +537,7 @@ partition_ :: (a -> Bool) -> [a] -> ([a], [a])
 partition_ p xs =
   foldr_ f ([], []) xs
   where
-    f x (l, r)
+    f x ~(l, r)
       | p x = (x : l, r)
       | otherwise = (l, x : r)
 
