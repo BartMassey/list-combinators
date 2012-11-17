@@ -779,7 +779,7 @@ sortBy_ c xs0 =
             g (xs1 : xs2 : xs) =
               Just (mergeBy c xs1 xs2, xs)
 
--- This version of InsertBy actually follows the contract
+-- This version of insertBy actually follows the contract
 -- from the documentation (inasmuch as that contract can be
 -- read to specify anything sensible.) This version is
 -- maximally productive. It is non-recursive. It is ugly and
@@ -799,9 +799,10 @@ insertBy_ c t xs0 =
     f x (Left xs) = Left (x : xs)
     f x (Right xs) = Right (x : xs)
 
--- XXX This version of InsertBy agrees with the standard
--- library, which seems to insert in the first possible
--- location rather than the last.
+-- This version of insertBy agrees with the standard
+-- library, which inserts in the first possible location
+-- rather than the last. (This is bug #7421 in the GHC
+-- Trac.)
 insertBy'_ :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy'_ c t xs =
   let (l, r) = span_ ((== GT) . c t) xs in
