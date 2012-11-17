@@ -720,18 +720,25 @@ sortBy_ c xs =
             g (xs1 : xs2 : xs) =
               Just (mergeBy c xs1 xs2, xs)
 
--- This version of InsertBy actually follows
--- the contract from the documentation.
+-- This version of InsertBy actually follows the contract
+-- from the documentation (inasmuch as that contract can be
+-- read to specify anything sensible.) This version is
+-- maximally productive. It is non-recursive. It is ugly and
+-- kludgy.
 insertBy_ :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy_ c t xs0 =
-  unfoldr_ f (Left xs0)
+  let (xs1, xs2) = span_ (\x -> t `c` x /= LT) xs0 in
+  let xs2' = 
+        case foldr_ f (Left []) xs2 of
+          Left xs -> t : xs
+          Right xs -> xs in
+  xs1 ++ xs2'
   where
-    f (Right []) = Nothing
-    f (Right (x : xs)) = Just (x, Right xs)
-    f (Left []) = Just (t, Right [])
-    f (Left (x : xs))
-      | t `c` x == GT = Just (x, Right xs)
-      | otherwise = Just (t, Left (x : xs))
+    f x (Left []) = Left [x]
+    f x (Left [x']) | t `c` x' /= LT = Right [x, x', t]
+    f x (Left xs) | t `c` x /= LT = Right (x : t : xs)
+    f x (Left xs) = Left (x : xs)
+    f x (Right xs) = Right (x : xs)
 
 -- XXX This version of InsertBy agrees with the standard
 -- library, which seems to insert in the first possible
