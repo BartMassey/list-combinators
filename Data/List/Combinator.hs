@@ -675,19 +675,16 @@ lines s =
         _ -> Just (l, Nothing)
 
 words :: String -> [String]
-words s =
-  unfoldr f (Just s)
+words s0 =
+  unfoldr f s0
   where
-    f Nothing = Nothing
-    f (Just cs) =
-      let (_, r) = span isSpace cs in
-      let (l, r') = break isSpace r in
-      case r' of
-        "" -> 
-          case l of
-            "" -> Nothing
-            _ -> Just (l, Nothing)
-        _ -> Just (l, Just r')
+    f s
+      | null ws = Nothing
+      | otherwise =
+        let (w, ws') = break isSpace ws in
+        Just (w, ws')
+      where
+        (_, ws) = span isSpace s
 
 unlines :: [String] -> String
 unlines [] = ""
