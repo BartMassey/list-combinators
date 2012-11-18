@@ -171,6 +171,43 @@ import Prelude hiding (
   unwords )
 import Data.Char (isSpace)
 
+-- This first bit is Bart Massey, Jamey Sharp and Jules
+-- Kongslie's generalized fold.  This fold generalizes a
+-- number of things from 'Data.List', including 'foldl' and
+-- 'foldr'. It works by allowing `f` to work with both state
+-- accumulated from the left and state built up from the
+-- right simultaneously.
+
+-- 'fold' is fully lazy if `f` is fully lazy
+-- on `l` and `r`, strict if at most one of `l` and `r` is
+-- strict, and is bottom if both `l` and `r` are strict.
+
+-- One can think of 'fold' as processing each element of its
+-- list input with a function that receives left context
+-- calculated from its predecessors and a right context
+-- calculated from its successors. As one traverses the list
+-- and examines these elements, the function is run to produce
+-- these outputs.
+
+-- There is probably a need for versions of these functions
+-- strict in the left context: call it fold' .
+
+-- Compare this work with the "bifold" discussed a while back
+-- on Haskell-Cafe:
+-- 
+--    http://haskell.1045720.n5.nabble.com/
+--           Bifold-a-simultaneous-foldr-and-foldl-td3285581.html
+-- 
+-- That fold is identical to this one (up to trivial signature
+-- differences). However, I think the subsumption results here
+-- are new.  There is some interesting discussion of "Q" from
+-- Backus that I would like to absorb someday.
+
+-- | Given a function that accepts an element and a left and
+-- right context and produces a new left and right context,
+-- and given an initial left and right context and a list,
+-- run the function on each element of the list with the
+-- appropriate context.
 fold :: (x -> (l, r) -> (l, r)) -> (l, r) -> [x] -> (l, r)
 fold f lr0 xs0 =
   g lr0 xs0
