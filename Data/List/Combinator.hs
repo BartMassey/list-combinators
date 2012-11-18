@@ -4,6 +4,7 @@
 -- distribution of this software for license terms.
 
 module Data.List.Combinator (
+  module Prelude,
   fold,
   foldl,
   foldl',
