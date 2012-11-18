@@ -505,11 +505,11 @@ dropWhileEnd p =
 
 span :: (a -> Bool) -> [a] -> ([a], [a])
 span p xs =
-  foldr f ([], []) xs
+  snd $ fold f (True, ([], [])) xs
   where
-    f x ~(l, r)
-      | p x = (x : l, r)
-      | otherwise = ([], x : r)
+    f x (b, ~(l, r))
+      | b && p x = (True, (x : l, r))
+      | otherwise = (False, ([], x : r))
 
 break :: (a -> Bool) -> [a] -> ([a], [a])
 break p = span (not . p)
