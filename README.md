@@ -1,9 +1,9 @@
 # Data.List.Combinator
 Copyright © 2012 Bart Massey
 
-This program is licensed under the "MIT License".
-Please see the file COPYING in the source distribution of
-this software for license terms.
+This program is licensed under the "BSD License".  Please
+see the file COPYING in the source distribution of this
+software for license terms.
 
 This is a mostly-combinator replacement for Data.List, using
 only a couple of recursive functions.  At this point this is

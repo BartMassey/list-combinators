@@ -1,5 +1,5 @@
 -- Copyright © 2012 Bart Massey
--- [This program is licensed under the "MIT License"]
+-- [This program is licensed under the "BSD License"]
 -- Please see the file COPYING in the source
 -- distribution of this software for license terms.
 
