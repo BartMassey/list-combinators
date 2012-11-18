@@ -151,65 +151,6 @@ transpose_ xss =
         xs = filter_ (not . null_) a
         g (y : ys) (h, t) = (y : h, ys : t)
 
--- The use of an infinite undefined list to get everything
--- is weird.  This appears to be what it takes to get fold
--- to do the full semantics in one pass. XXX There's a bug
--- here having to do with null lists on input; Jamey Sharp
--- pointed it out.
-transpose_0 :: [[a]] -> [[a]]
-transpose_0 xss =
-  takeWhile_ (not . null_) $ snd $ fold f (xss, []) (repeat_ undefined)
-  where
-    f _ (l, r)
-      | null_ rest = (rest, [first])
-      | otherwise = (rest, first : r)
-      where
-        first = map_ head_ l
-        rest = filter_ (not . null_) $ map_ tail_ l
-
--- This is the recursive transpose. It is actually quite
--- natural, and arguably nicer than the version above.
-transpose_1 :: [[a]] -> [[a]]
-transpose_1 [] = []
-transpose_1 xss =
-  map_ head_ xss : transpose_ (filter_ (not . null_) (map_ tail_ xss))
-
--- This version of transpose is two-pass. This appears to be
--- what it takes to use fold to get the proper semantics,
--- without doing something weird.
-transpose_2 :: [[a]] -> [[a]]
-transpose_2 xss =
-  snd $ fold f (xss, []) [1 .. maximum_ (map_ length_ xss)]
-  where
-    f _ (l, r) =
-      (filter_ (not . null_) $ map_ tail_ l, map_ head_ l : r)
-
--- This version of transpose will drop elements from the
--- remaining rows of the input as needed to "square up" the
--- "matrix" so that no row is longer than the first, then
--- transpose that.  This appears to be what it takes to use
--- fold instead of general recursion in a single pass
--- without doing something weird.
-transpose_3 :: [[a]] -> [[a]]
-transpose_3 (xs : xss) =
-  snd $ fold f (xss, []) xs
-  where
-    f x (l, r) =
-      (filter_ (not . null_) $ map_ tail_ l, (x : map_ head_ l) : r)
-
--- This version of transpose will drop elements from the
--- remaining rows of the input as needed to "square up" the
--- "matrix" so that no row is longer than the first, then
--- transpose that.  This version is two-pass.  This appears
--- to be what it takes to use foldr instead of fold.
-transpose_4 :: [[a]] -> [[a]]
-transpose_4 [] = []
-transpose_4 (xs : xss) =
-  reverse $ fst $ foldl_ f ([], xss) xs
-  where
-    f (ts, us) x =
-      ((x : map_ head_ us) : ts, filter_ (not . null_) $ map_ tail_ us)
-
 subsequences_ :: [a] -> [[a]]
 subsequences_ xs =
   foldr_ f [[]] xs
@@ -375,16 +316,6 @@ unfoldr_ f a =
         Nothing -> Nothing
         Just (x, l') -> Just (x, (l', r))
 
--- The straight recursive version.
-unfoldr_1 :: (b -> Maybe (a, b)) -> b -> [a]
-unfoldr_1 f a0 =
-  go a0 
-  where
-    go a =
-      case f a of
-        Just (x, a') -> x : go a'
-        Nothing -> []
-
 -- This type is a generalization of the one in Data.List.
 take_ :: Integral b => b -> [a] -> [a]
 take_ n0 =
@@ -474,7 +405,6 @@ tails_ xs =
   snd $ fold f (xs, [[]]) xs
   where
     f _ (y@(_ : ys), r) = (ys, y : r)
-
 
 isPrefixOf_ :: Eq a => [a] -> [a] -> Bool
 isPrefixOf_ xs ys =
