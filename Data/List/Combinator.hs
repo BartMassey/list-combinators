@@ -44,6 +44,11 @@
 -- less performant than the GHC 'base' library. However, it
 -- is hopefully easier to understand, verify and maintain.
 -- 
+-- Every function described here is maximally productive,
+-- unless otherwise specified. Informally, this means that
+-- the result of the function will be built up in such a way
+-- that each piece will be ready for consumption as early as
+-- logically possible.
 -----------------------------------------------------------------------------
 
 
@@ -270,7 +275,7 @@ fold f lr0 xs0 =
 --
 -- > [x1, ..., xm] ++ [y1, ..., yn] == [x1, ..., xm, y1, ..., yn]
 --
--- Productive. /O(m + n)/. Laws:
+-- /O(m)/. Laws:
 -- 
 -- > forall xs . xs ++ [] == [] ++ xs == xs
 -- > forall x xs ys . x : (xs ++ ys) == (x : xs) ++ ys
@@ -279,14 +284,14 @@ fold f lr0 xs0 =
 xs ++ ys = foldr (:) ys xs
 
 -- | Return the first element of a non-empty
--- list. Productive. /O(1)/. Laws:
+-- list. /O(1)/. Laws:
 -- 
 -- > forall l : List a | not (null l) . (head l : tail l) == l
 head :: [a] -> a
 head (x : _) = x
 
 -- | Return the last element of a non-empty
--- list. Strict. /O(n)/. Laws:
+-- list. Strict. /O(1)/. Laws:
 -- 
 -- > forall l | (exists k : Integer . k > 1 && length l == k) . 
 -- >   init l ++ [tail l] == l
@@ -294,14 +299,14 @@ last :: [a] -> a
 last (x : xs) = foldl (\_ y -> y) x xs
 
 -- | Return the second and subsequent elements of a
--- non-empty list. Productive. /O(1)/. Laws:
+-- non-empty list. /O(1)/. Laws:
 -- 
 -- > forall l : List a | not (null l) . (head l : tail l) == l
 tail :: [a] -> [a]
 tail (_ : xs) = xs
 
 -- | Return all the elements of a non-empty list except the
--- last one. Productive. /O(n)/. Laws:
+-- last one. /O(1)/. Laws:
 -- 
 -- > forall l | (exists k : Integer . k > 1 && length l == k) . 
 -- >   init l ++ [tail l] == l
@@ -312,7 +317,7 @@ init xs0 =
     f _ Nothing = Just []
     f x (Just xs) = Just (x : xs)
 
--- | Return True on the empty list, and False
+-- | Return 'True' on the empty list, and 'False'
 -- on any other list. /O(1)/. Laws:
 -- 
 -- > null [] == True
@@ -340,20 +345,67 @@ length xs = genericLength xs
 length' :: [a] -> Int
 length' xs = genericLength xs
 
+-- | @'map' f xs@ applies @f@ to each element
+-- of @xs@ in turn and returns a list of the results, i.e.,
+-- 
+-- > map f [x1, x2, ..., xn] == [f x1, f x2, ..., f xn]
+-- 
+-- /O(n)/ plus the cost of the function applications. Laws:
+-- 
+-- > forall f . map f [] == []
+-- > forall f x xs . map f (x : xs) = f x : map f xs
 map :: (a -> b) -> [a] -> [b]
 map f xs = foldr (\x a -> f x : a) [] xs
 
+-- | 'reverse' returns the elements of its input list in
+-- reverse order. Strict. /O(n)/. Laws:
+-- 
+-- > reverse [] == []
+-- > forall xs | not (null xs) . 
+-- >   reverse xs = last xs : reverse (init xs)
 reverse :: [a] -> [a]
 reverse xs = foldl' (\a x -> x : a) [] xs
 
+-- | The 'intersperse' function takes an element and a list and
+-- \`intersperses\' that element between the elements of the list.
+-- For example,
+-- 
+-- > intersperse ',' "abcde" == "a,b,c,d,e"
+-- 
+-- /O(n)/. Laws:
+-- 
+-- > forall t . intersperse t [] == []
+-- > forall t x . intersperse t [x] == [x]
+-- > forall t x xs | not (null xs) . 
+-- >   intersperse t (x : xs) == x : intersperse t xs
 intersperse :: a -> [a] -> [a]
 intersperse _ [] = []
 intersperse s xs = tail $ foldr (\x a -> s : x : a) [] xs
 
--- Taken directly from Data.List.
+-- This intercalate is taken directly from Data.List.
+
+-- | @'intercalate' xs xss@ inserts the list @xs@ in between
+-- the lists in @xss@ and returns the concatenation of
+-- resulting lists. /O(n)/. Laws:
+-- 
+-- > forall xs xss .
+-- >   intercalate xs xss == concat (intersperse xs xss)
 intercalate :: [a] -> [[a]] -> [a]
 intercalate xs xss = concat (intersperse xs xss)
 
+-- | The 'transpose' function transposes the rows and columns of its argument.
+-- For example,
+--
+-- >>> transpose [["a1","b1"],["a2","b2","c2"],["a3","b3"]]
+-- [["a1","a2","a3"],["b1","b2","b3"],["c2"]]
+-- 
+-- /O(n)/ where /n/ is the number of elements to be
+-- transposed. Laws:
+-- 
+-- > forall xss yss | yss == filter (not . null) xss && null yss . 
+-- >   transpose xss == []
+-- > forall xss yss | yss == filter (not . null) xss && not (null yss) . 
+-- >   transpose xss == map head yss : map tail yss
 transpose :: [[a]] -> [[a]]
 transpose xss =
   unfoldr f xss
@@ -366,25 +418,46 @@ transpose xss =
         xs = filter (not . null) a
         g (y : ys) (h, t) = (y : h, ys : t)
 
+-- | The 'subsequences' function returns the list of all
+-- subsequences (ordered sublists) of its argument, in no
+-- specified order. /O(2^n)/. Laws:
+-- 
+-- > forall xs . length (subsequences xs) == 2^(length xs)
+-- > forall xs . xs `elem` subsequences xs
+-- > forall xs1 x xs2 xs3 | xs3 `elem` subsequences (xs1 ++ xs2) .
+-- >   xs3 `elem` subsequences (xs1 ++ [x] ++ xs2)
 subsequences :: [a] -> [[a]]
 subsequences xs =
   foldr f [[]] xs
   where
     f x a = a ++ (map (x :) a)
 
+-- | The 'permutations' function returns the list of lists
+-- of all permutations of its list argument, in no specified
+-- order. /O(n!)/. Laws:
+-- 
+-- > forall xs . length (permutations xs) == factorial (length xs)
+-- > forall xs xs1 x xs2 | xs = xs1 ++ [x] ++ xs2 .
+-- >   (x : (permutations xs1 ++ permutations xs2)) `elem` permutations xs
 permutations :: [a] -> [[a]]
 permutations xs =
   foldr f [[]] xs
   where
     f x a = concatMap (insertions x) a
 
--- Return a list of the lists obtained by inserting x at
--- every position in xs.
+-- | @'insertions' t xs@ returns a list of the lists
+-- obtained by inserting @t@ at every position in @xs@ in
+-- sequence, in order from left to
+-- right. [New]. /O(n^2)/. Laws:
+-- 
+-- > forall t . insertions t [] == [[t]]
+-- > forall t x xs . 
+-- >   insertions t (x : xs) == [t : x : xs] : map (x :) (insertions t xs)
 insertions :: a -> [a] -> [[a]]
 insertions x xs =
   snd $ foldr f ([], [[x]]) xs
   where
-    f y (l, r) = (y : l, (x : y : l) : map (y :) r)
+    f y ~(l, r) = (y : l, (x : y : l) : map (y :) r)
 
 foldl :: (a -> b -> a) -> a -> [b] -> a
 foldl f a0 =
