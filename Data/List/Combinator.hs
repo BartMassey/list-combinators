@@ -3,13 +3,25 @@
 -- Please see the file COPYING in the source
 -- distribution of this software for license terms.
 
+-----------------------------------------------------------------------------
+-- |
+-- Module      :  Data.List.Combinator
+-- Copyright   :  (c) 2012 Bart Massey
+-- License     :  BSD-style (see the file COPYING)
+-- 
+-- Maintainer  :  bart.massey@gmail.com
+-- Stability   :  pre-alpha
+-- Portability :  portable
+--
+-- Operations on lists.
+--
+-----------------------------------------------------------------------------
+
+
 module Data.List.Combinator (
   module Prelude,
-  fold,
-  foldl,
-  foldl',
-  foldr,
-  append,
+  -- * Basic functions
+  (++),
   head,
   last,
   tail,
@@ -17,14 +29,20 @@ module Data.List.Combinator (
   null,
   length,
   length',
+  -- * List transformations
   map,
   reverse,
   intersperse,
   intercalate,
   transpose,
   subsequences,
-  insertions,
   permutations,
+  insertions,
+  -- * Reducing lists (folding)
+  fold,
+  foldl,
+  foldl',
+  foldr,
   foldl1,
   foldl1',
   foldr1,
@@ -118,6 +136,7 @@ module Data.List.Combinator (
   genericLength ) where
 
 import Prelude hiding (
+  (++),
   foldl,
   foldr,
   head,
@@ -171,7 +190,7 @@ import Prelude hiding (
   unwords )
 import Data.Char (isSpace)
 
--- This first bit is Bart Massey, Jamey Sharp and Jules
+-- This is Bart Massey, Jamey Sharp and Jules
 -- Kongslie's generalized fold.  This fold generalizes a
 -- number of things from 'Data.List', including 'foldl' and
 -- 'foldr'. It works by allowing `f` to work with both state
@@ -218,36 +237,45 @@ fold f lr0 xs0 =
           (l2, r2) = g (l1, r) xs  in
       (l2, r1)
 
-foldl :: (a -> b -> a) -> a -> [b] -> a
-foldl f a0 =
-  fst . fold f' (a0, undefined)
-  where
-    f' x (l, r) = (f l x, r)
+-- | Append two lists, i.e.,
+--
+-- > [x1, ..., xm] ++ [y1, ..., yn] == [x1, ..., xm, y1, ..., yn]
+--
+-- Productive. /O(m + n)/. Laws:
+-- 
+-- > forall xs . xs ++ [] == [] ++ xs == xs
+-- > forall x xs ys . x : (xs ++ ys) == (x : xs) ++ ys
+-- > forall xs ys zs . (xs ++ ys) ++ zs == xs ++ (ys ++ zs)
+(++) :: [a] -> [a] -> [a]
+xs ++ ys = foldr (:) ys xs
 
-foldl' :: (a -> b -> a) -> a -> [b] -> a
-foldl' f a0 =
-  fst . fold f' (a0, undefined)
-  where
-    f' x (l, r) = ((f $! l) $! x, r)
-
-foldr :: (a -> b -> b) -> b -> [a] -> b
-foldr f b0 =
-  snd . fold f' (undefined, b0)
-  where
-    f' x (l, r) = (l, f x r)
-
-append :: [a] -> [a] -> [a]
-xs `append` ys = foldr (:) ys xs
-
+-- | Return the first element of a non-empty
+-- list. Productive. /O(1)/. Laws:
+-- 
+-- > forall l : List a | not (null l) . (head l : tail l) == l
 head :: [a] -> a
 head (x : _) = x
 
+-- | Return the last element of a non-empty
+-- list. Strict. /O(n)/. Laws:
+-- 
+-- > forall l | (exists k : Integer . k > 1 && length l == k) . 
+-- >   init l ++ [tail l] == l
 last :: [a] -> a
 last (x : xs) = foldl (\_ y -> y) x xs
 
+-- | Return the second and subsequent elements of a
+-- non-empty list. Productive. /O(1)/. Laws:
+-- 
+-- > forall l : List a | not (null l) . (head l : tail l) == l
 tail :: [a] -> [a]
 tail (_ : xs) = xs
 
+-- | Return all the elements of a non-empty list except the
+-- last one. Productive. /O(n)/. Laws:
+-- 
+-- > forall l | (exists k : Integer . k > 1 && length l == k) . 
+-- >   init l ++ [tail l] == l
 init :: [a] -> [a]
 init xs0 =
   let Just ys = foldr f Nothing xs0 in ys
@@ -255,16 +283,32 @@ init xs0 =
     f _ Nothing = Just []
     f x (Just xs) = Just (x : xs)
 
+-- | Return True on the empty list, and False
+-- on any other list. /O(1)/. Laws:
+-- 
+-- > null [] == True
+-- > forall x, xs . null (x : xs) == False
 null :: [a] -> Bool
 null [] = True
 null  _ = False
 
-length :: [a] -> Int
+-- | Returns the length of a finite list as an 'Integer'. See also
+-- 'genericLength'. Strict. /O(n)/. Laws:
+-- 
+-- > length [] == 0
+-- > forall x, xs | (exists k . length xs <= k) . 
+-- >   length (x : xs) == 1 + length xs
+length :: [a] -> Integer
 length xs = genericLength xs
 
--- This type is changed from Data.List to cope with
--- very long lists.
-length' :: [a] -> Integer
+-- | Returns the length of a list with less than or
+-- equal to 'maxBound' 'Int' elements as an 'Int'. See also
+-- 'genericLength'. Strict. /O(n)/. Laws: 
+-- 
+-- > length' [] == 0
+-- > forall x, xs | length xs < maxBound :: Int .
+-- >   length' (x : xs) == 1 + length' xs
+length' :: [a] -> Int
 length' xs = genericLength xs
 
 map :: (a -> b) -> [a] -> [b]
@@ -297,7 +341,13 @@ subsequences :: [a] -> [[a]]
 subsequences xs =
   foldr f [[]] xs
   where
-    f x a = a `append` (map (x :) a)
+    f x a = a ++ (map (x :) a)
+
+permutations :: [a] -> [[a]]
+permutations xs =
+  foldr f [[]] xs
+  where
+    f x a = concatMap (insertions x) a
 
 -- Return a list of the lists obtained by inserting x at
 -- every position in xs.
@@ -307,11 +357,23 @@ insertions x xs =
   where
     f y (l, r) = (y : l, (x : y : l) : map (y :) r)
 
-permutations :: [a] -> [[a]]
-permutations xs =
-  foldr f [[]] xs
+foldl :: (a -> b -> a) -> a -> [b] -> a
+foldl f a0 =
+  fst . fold f' (a0, undefined)
   where
-    f x a = concatMap (insertions x) a
+    f' x (l, r) = (f l x, r)
+
+foldl' :: (a -> b -> a) -> a -> [b] -> a
+foldl' f a0 =
+  fst . fold f' (a0, undefined)
+  where
+    f' x (l, r) = ((f $! l) $! x, r)
+
+foldr :: (a -> b -> b) -> b -> [a] -> b
+foldr f b0 =
+  snd . fold f' (undefined, b0)
+  where
+    f' x (l, r) = (l, f x r)
 
 foldl1 :: (a -> a -> a) -> [a] -> a
 foldl1 f (x : xs) = foldl f x xs 
@@ -327,11 +389,11 @@ foldr1 f xs =
     g x (Just a) = Just (f a x)
 
 concat :: [[a]] -> [a]
-concat xss = foldr (\x a -> append x a) [] xss
+concat xss = foldr (\x a -> x ++ a) [] xss
 
 concatMap :: (a -> [b]) -> [a] -> [b]
 concatMap f xs =
-  foldr (\x a -> f x `append` a) [] xs
+  foldr (\x a -> f x ++ a) [] xs
 
 and :: [Bool] -> Bool
 and = foldr (&&) True
@@ -417,7 +479,7 @@ replicate n = take n . repeat
 
 cycle :: [a] -> [a]
 cycle xs =
-  let ys = xs `append` ys in ys
+  let ys = xs ++ ys in ys
 
 -- This generalized fold may be enough to write fold?
 folds :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
