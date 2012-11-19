@@ -405,7 +405,7 @@ intercalate xs xss = concat (intersperse xs xss)
 -- > forall xss yss | yss == filter (not . null) xss && null yss . 
 -- >   transpose xss == []
 -- > forall xss yss | yss == filter (not . null) xss && not (null yss) . 
--- >   transpose xss == map head yss : map tail yss
+-- >   transpose xss == map head yss : transpose (map tail yss)
 transpose :: [[a]] -> [[a]]
 transpose xss =
   unfoldr f xss
@@ -422,10 +422,9 @@ transpose xss =
 -- subsequences (ordered sublists) of its argument, in no
 -- specified order. /O(2^n)/. Laws:
 -- 
--- > forall xs . length (subsequences xs) == 2^(length xs)
--- > forall xs . xs `elem` subsequences xs
--- > forall xs1 x xs2 xs3 | xs3 `elem` subsequences (xs1 ++ xs2) .
--- >   xs3 `elem` subsequences (xs1 ++ [x] ++ xs2)
+-- > subsequences [] == [[]]
+-- > forall x xs . subsequences (x : xs) `elem` 
+-- >   permutations (subsequences xs ++ map (x :) (subsequences xs))
 subsequences :: [a] -> [[a]]
 subsequences xs =
   foldr f [[]] xs
@@ -436,9 +435,9 @@ subsequences xs =
 -- of all permutations of its list argument, in no specified
 -- order. /O(n!)/. Laws:
 -- 
--- > forall xs . length (permutations xs) == factorial (length xs)
--- > forall xs xs1 x xs2 | xs = xs1 ++ [x] ++ xs2 .
--- >   (x : (permutations xs1 ++ permutations xs2)) `elem` permutations xs
+-- > permutations [] == [[]]
+-- > forall x xs . permutations (x : xs) `elem`
+-- >   permutations (concatMap (insertions x) (permutations xs))
 permutations :: [a] -> [[a]]
 permutations xs =
   foldr f [[]] xs
