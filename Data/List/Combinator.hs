@@ -321,7 +321,7 @@ init xs0 =
 -- on any other list. /O(1)/. Laws:
 -- 
 -- > null [] == True
--- > forall x, xs . null (x : xs) == False
+-- > forall x xs . null (x : xs) == False
 null :: [a] -> Bool
 null [] = True
 null  _ = False
@@ -330,7 +330,7 @@ null  _ = False
 -- 'genericLength'. Strict. /O(n)/. Laws:
 -- 
 -- > length [] == 0
--- > forall x, xs | (exists k . length xs <= k) . 
+-- > forall x xs | (exists k . length xs <= k) . 
 -- >   length (x : xs) == 1 + length xs
 length :: [a] -> Integer
 length xs = genericLength xs
@@ -340,7 +340,7 @@ length xs = genericLength xs
 -- 'genericLength'. Strict. /O(n)/. Laws: 
 -- 
 -- > length' [] == 0
--- > forall x, xs | length xs < maxBound :: Int .
+-- > forall x xs | length xs < maxBound :: Int .
 -- >   length' (x : xs) == 1 + length' xs
 length' :: [a] -> Int
 length' xs = genericLength xs
