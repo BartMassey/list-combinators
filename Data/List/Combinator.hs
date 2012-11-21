@@ -725,7 +725,7 @@ minimum = foldl1' min
 -- 
 -- > scanl f a [x1, x2, ...] == [a, a `f` x1, (a `f` x1) `f` x2, ...]
 -- 
--- Spine-strict. /O(n)/. Laws:
+-- Spine-strict. /O(n)/ plus the cost of evaluating @f@. Laws:
 -- 
 -- > forall f a . scanl f a [] == [a]
 -- > forall f a x xs . scanl f a (x : xs) == a : scanl f (f a x) xs
@@ -736,7 +736,7 @@ scanl f a0 =
     g a x = let a' = f a x in (a', a')
 
 -- | The 'scanl1' function is to 'scanl' as 'foldl1' is to 'foldl'.
--- Spine-strict. /O(n)/. Laws:
+-- Spine-strict. /O(n)/ plus the cost of evaluating @f@. Laws:
 -- 
 -- > forall f x xs . scanl1 f (x : xs) == scanl f x xs
 scanl1 :: (a -> a -> a) -> [a] -> [a]
@@ -746,7 +746,8 @@ scanl1 f (x : xs) = scanl f x xs
 -- 'scanr' passes an accumulator from right to left.
 -- However, 'scanr' returns a list of accumulator values (in
 -- the order consistent with the
--- definition). Spine-strict. /O(n)/. Laws:
+-- definition). Spine-strict. /O(n)/ plus the cost of
+-- evaluating @f@. Laws:
 -- 
 -- > forall f a . scanr f a [] == [a]
 -- > forall f a b x xs | bs == scanr f a xs . 
@@ -758,7 +759,7 @@ scanr f a0 xs =
     f' x as@(a : _) = f x a : as
 
 -- | The 'scanr1' function is to 'scanr' as 'foldr1' is to 'foldr'.
--- /O(n)/. Laws:
+-- /O(n)/ plus the cost of evaluating @f@. Laws:
 -- 
 -- > forall f x xs . scanr1 f (xs ++ [x]) == scanr f x xs
 scanr1 :: (a -> a -> a) -> [a] -> [a]
@@ -768,14 +769,44 @@ scanr1 f xs =
     f' x [] = [x]
     f' x as@(a : _) = f x a : as
 
+-- | The 'mapAccumL' function behaves like a combination of
+-- 'map' and 'foldl'; it applies a function to each element
+-- of a list, passing an accumulating parameter from left to
+-- right, and returns a final value of this accumulator
+-- together with the new list. /O(n)/ plus the cost
+-- of evaluating the folding function. Laws:
+-- 
+-- > forall f a . mapAccumL f a [] == (a, [])
+-- > forall f a a' a'' x x' xs xs''
+-- >   | (a', x') == f a x && (a'', xs'') == mapAccumL f a' xs .
+-- >     mapAccumL f a (x : xs) == (a'', x' : xs'')
 mapAccumL :: (a -> b -> (a, c)) -> a -> [b] -> (a, [c])
 mapAccumL f a0 =
   fold f' (a0, [])
   where
-    f' x (l, rs) =
-      let (l', r') = f l x in
+    f' x ~(l, rs) =
+      let ~(l', r') = f l x in
       (l', r' : rs)
 
+-- | The 'mapAccumR' function behaves like a combination of
+-- 'map' (which is essentially a 'foldr') and (another)
+-- 'foldr'; it applies a function to each element of a list,
+-- passing an accumulating parameter from right to left, and
+-- returns a final value of this accumulator together with
+-- the new list. 
+-- 
+-- Watch out: the folding function takes its
+-- arguments in the opposite order of 'foldr'. Given that
+-- 'mapAccumR' is essentially a 'foldr' on a pair, it
+-- probably should not exist. 
+-- 
+-- /O(n)/ plus the cost of evaluating the folding
+-- function. Laws:
+-- 
+-- > forall f a xs . mapAccumR f a [] == (a, [])
+-- > forall f a a' a'' x x'' xs xs''
+-- >   | (a'', x'') == f a' x && (a', xs') == mapAccumR f a xs .
+-- >     mapAccumR f a (x : xs) == (a'', x'' : xs')
 mapAccumR :: (a -> b -> (a, c)) -> a -> [b] -> (a, [c])
 mapAccumR f a0 =
   foldr f' (a0, [])
