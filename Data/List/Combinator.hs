@@ -80,6 +80,7 @@ module Data.List.Combinator (
   foldl1,
   foldl1',
   foldr1,
+  -- * Special folds
   concat,
   concatMap,
   and,
@@ -87,23 +88,31 @@ module Data.List.Combinator (
   any,
   all,
   sum,
+  sum',
   product,
+  product',
   maximum,
   minimum,
+  -- * Building lists
+  -- ** Scans
   scanl,
   scanl1,
   scanr,
   scanr1,
+  -- ** Accumulating maps
   mapAccumL,
   mapAccumR,
+  -- ** Infinite Lists
   iterate,
   repeat,
   replicate,
   cycle,
+  -- ** Unfolding
   folds,
   unfold,
   unfold1,
   unfoldr,
+  -- * Sublists
   take,
   drop,
   splitAt,
@@ -312,10 +321,10 @@ tail (_ : xs) = xs
 -- >   init l ++ [tail l] == l
 init :: [a] -> [a]
 init xs0 =
-  let Just ys = foldr f Nothing xs0 in ys
+  foldr f [] xs0
   where
-    f _ Nothing = Just []
-    f x (Just xs) = Just (x : xs)
+    f x [] = []
+    f x as = (x : as)
 
 -- | Return 'True' on the empty list, and 'False'
 -- on any other list. /O(1)/. Laws:
@@ -447,7 +456,7 @@ permutations xs =
 -- | @'insertions' t xs@ returns a list of the lists
 -- obtained by inserting @t@ at every position in @xs@ in
 -- sequence, in order from left to
--- right. [New]. /O(n^2)/. Laws:
+-- right. [New.] /O(n^2)/. Laws:
 -- 
 -- > forall t . insertions t [] == [[t]]
 -- > forall t x xs . 
@@ -458,96 +467,306 @@ insertions x xs =
   where
     f y ~(l, r) = (y : l, (x : y : l) : map (y :) r)
 
+-- | 'foldl', applied to a binary operator @f@, a starting value (typically
+-- the left-identity of the operator) @a@, and a list, reduces the list
+-- using @f@, from left to right:
+-- 
+-- > foldl f a [x1, x2, ..., xn] == (...((a `f` x1) `f` x2) `f`...) `f` xn
+-- 
+-- The starting value @a@ is best thought of as an \"accumulator\" that
+-- is passed from the beginning to the end of the list and then returned.
+-- 
+-- Strict. /O(n)/ plus the cost of evaluating @f@. Laws:
+-- 
+-- > forall f a . foldl f a [] == a
+-- > forall a x xs . foldl f a (x : xs) == foldl f (f a x) xs
 foldl :: (a -> b -> a) -> a -> [b] -> a
 foldl f a0 =
   fst . fold f' (a0, undefined)
   where
     f' x (l, r) = (f l x, r)
 
+-- | The semantics of 'foldl'' those of 'foldl', except that
+-- 'foldl'' eagerly applies @f@ at each step. This gains
+-- some operational efficiency, but makes 'foldl'' only
+-- partially correct: there are cases where 'foldl' would
+-- return a value, but 'foldl'' on the same arguments will
+-- nonterminate or fail. The Laws for 'foldl'' are thus
+-- the same as those for 'foldl' up to a condition on @f@,
+-- which is not given here.
 foldl' :: (a -> b -> a) -> a -> [b] -> a
-foldl' f a0 =
+foldl' f a0 xs0 =
+  foldl'' a0 xs0
+  where
+    foldl'' a [] = a
+    foldl'' a (x : xs) =
+      (foldl'' $! ((f $! a) $! x)) $! xs
+
+-- XXX The strictness isn't right here currently, maybe?
+foldl'_0 :: (a -> b -> a) -> a -> [b] -> a
+foldl'_0 f a0 =
   fst . fold f' (a0, undefined)
   where
     f' x (l, r) = ((f $! l) $! x, r)
 
+-- | 'foldl1' is a variant of 'foldl' that 
+-- starts the fold with the accumulator set
+-- to the first element of the list; this
+-- requires that its list argument be nonempty.
+-- Spine-strict. /O(n)/ plus the cost of evaluating @f@. Laws:
+-- 
+-- > forall f x xs . foldl1 f (x : xs) == foldl f x xs
+foldl1 :: (a -> a -> a) -> [a] -> a
+foldl1 f (x : xs) = foldl f x xs 
+
+-- | 'foldl1'' bears the same relation to 'foldl1' that
+-- 'foldl'' bears to 'foldl'.
+foldl1' :: (a -> a -> a) -> [a] -> a
+foldl1' f (x : xs) = foldl' f x xs 
+
+-- | 'foldr', applied to a binary operator @f@, a starting value (typically
+-- the right-identity of the operator) @a@, and a list, reduces the list
+-- using @f@, from right to left:
+-- 
+-- > foldr f a [x1, x2, ..., xn] == x1 `f` (x2 `f` ... (xn `f` a)...)
+-- 
+-- The starting value @a@ is best thought of as an
+-- \"accumulator\" that is returned from processing the last
+-- element of the list and processed by subsequent returns,
+-- finally being returned as the result. Because 'foldr' is
+-- lazy, and proceeds (of necessity) by calls from left to
+-- right on the list, it is possible for 'foldr' to \"stop
+-- processing early\" if @f@ simply returns its accumulator
+-- @a@. /O(n)/ plus the cost of evaluating @f@. Laws:
+-- 
+-- > forall f a . foldr f a [] == a
+-- > forall f a x xs . foldr f a (x : xs) == f x (foldr f a xs)
 foldr :: (a -> b -> b) -> b -> [a] -> b
 foldr f b0 =
   snd . fold f' (undefined, b0)
   where
     f' x (l, r) = (l, f x r)
 
-foldl1 :: (a -> a -> a) -> [a] -> a
-foldl1 f (x : xs) = foldl f x xs 
-
-foldl1' :: (a -> a -> a) -> [a] -> a
-foldl1' f (x : xs) = foldl' f x xs 
-
+-- | 'foldr1' is a variant of 'foldr' that 
+-- folds with the accumulator set
+-- to the last element of the list; this
+-- requires that its list argument be nonempty.
+-- /O(n)/ plus the cost of evaluating @f@. Laws:
+-- 
+-- > forall f xs x . foldr1 f (xs ++ [x]) == foldr f x xs
 foldr1 :: (a -> a -> a) -> [a] -> a
 foldr1 f xs =
-  let Just y = foldr g Nothing xs in y
+  let Just a0 = foldr f' Nothing xs in a0
   where
-    g x Nothing = Just x
-    g x (Just a) = Just (f a x)
+    f' x Nothing = Just x
+    f' x (Just a) = Just (f x a)
 
+-- | Given a list of lists, \"concatenate\" the lists, that
+-- is, append them all together to make a list of the
+-- elements. /O(n)/. Laws:
+-- 
+-- > concat [] == []
+-- > forall xs xss . concat (xs : xss) == xs ++ concat xss
 concat :: [[a]] -> [a]
-concat xss = foldr (\x a -> x ++ a) [] xss
+concat xss = foldr (++) [] xss
 
+-- | Apply 'concat' to the result of 'map'-ing a function
+-- @f@ onto a list; the result of @f@ must of necessity be a
+-- list.  A convenience function, and may be more efficient
+-- by a constant factor than the obvious
+-- implementation. /O(n)/ plus the cost of evaluating
+-- @f@. Laws:
+-- 
+-- > forall f xs . concatMap f xs == concat (map f xs)
 concatMap :: (a -> [b]) -> [a] -> [b]
 concatMap f xs =
   foldr (\x a -> f x ++ a) [] xs
 
+-- | The 'and' function returns the conjunction of the
+-- elements of its 'Boolean' list argument. This is
+-- \"short-circuiting\" 'and': it scans the list from left
+-- to right, returning 'False' the first time a 'False'
+-- element is encountered. Thus, it is strict in the case
+-- the list is entirely 'True', and spine-lazy
+-- otherwise. /O(n)/. Laws:
+-- 
+-- and [] == True
+-- forall x xs . and (x : xs) == x && and xs
 and :: [Bool] -> Bool
 and = foldr (&&) True
 
+-- | The 'or' function returns the disjunction of the
+-- elements of its 'Boolean' list argument. This is
+-- \"short-circuiting\" 'or': it scans the list from left
+-- to right, returning 'True' the first time a 'True'
+-- element is encountered. Thus, it is strict in the case
+-- the list is entirely 'False', and spine-lazy
+-- otherwise. /O(n)/. Laws:
+-- 
+-- or [] == False
+-- forall x xs . or (x : xs) == x || or xs
 or :: [Bool] -> Bool
 or = foldr (||) False
 
+-- | The 'any' function returns 'True' if its predicate
+-- argument @p@ applied to any element of its list argument
+-- returns 'True', and returns 'False' otherwise. This is
+-- \"short-circuiting\" any, as with 'or'. /O(n)/ plus the
+-- cost of evaluating @p@. Laws:
+-- 
+-- > forall p xs . any p xs == or (map p xs)
 any :: (a -> Bool) -> [a] -> Bool
 any p = or . map p
 
+-- | The 'all' function returns 'False' if its predicate
+-- argument @p@ applied to any element of its list argument
+-- returns 'False', and returns 'True' otherwise. This is
+-- \"short-circuiting\" any, as with 'and'. /O(n)/ plus the
+-- cost of evaluating @p@. Laws:
+-- 
+-- > forall p xs . all p xs == and (map p xs)
 all :: (a -> Bool) -> [a] -> Bool
 all p = and . map p
 
--- XXX This should be spine-strict using foldl', but this
--- is not allowed by the Standard (according to the GHC
--- folks), because of some kind of "numbers"?
-sum :: (Num a) => [a] -> a
-sum = foldl (+) 0
+-- | Returns the sum of a list of numeric arguments. The
+-- sum of the empty list is defined to be @0@.
+-- [New. See 'sum'' below.] Strict. /O(n)/. Laws:
+-- 
+-- sum [] == 0
+-- forall x xs . sum (x : xs) == x + sum xs
+sum :: Num a => [a] -> a
+sum = 
+  foldl' plus 0
+  where
+    a `plus` b = ((+) $! a) $! b
 
-product :: (Num a) => [a] -> a
-product = foldl (*) 1
 
+-- | Returns the sum of a list of numeric arguments. The
+-- sum of the empty list is defined to be @0@.
+-- 
+-- This should be element-strict (like foldl'), but this is
+-- not allowed by the Standard (according to the GHC folks),
+-- because it is possible that some kind of non-standard
+-- non-strict \"numbers\" could be implemented as a 'Num'
+-- instance. Thus, with standard numbers, this sum will
+-- not be executed at all efficiently: the result will
+-- be a function that, when evaluated, will produce a sum.
+-- To be fair, compiler strictness analysis will usually
+-- fix this problem: you will normally only see it when
+-- the compiler fails to optimize.
+-- 
+-- /O(n)/. Laws:
+-- 
+-- sum' [] == 0
+-- forall x xs . sum' (x : xs) == x + sum' xs
+sum' :: Num a => [a] -> a
+sum' = foldl (+) 0
+
+-- | Returns the product of a list of numeric arguments. The
+-- product of the empty list is defined to be @1@. This
+-- version will terminate early if a numeric @0@ is
+-- encountered in the list, and thus will work on infinite
+-- lists containing @0@ and will be more efficient on lists
+-- containing @0@. [New. See 'product'' below.]
+-- Strict, up to handling @0@. /O(n)/. Laws:
+-- 
+-- > product [] == 1
+-- > forall x xs . product (x : xs) == x * product xs
+product :: (Num a, Eq a) => [a] -> a
+product = 
+  foldr times 1
+  where
+    0 `times` _ = 0
+    _ `times` 0 = 0
+    x `times` y = ((*) $! x) $! y
+
+-- | Returns the product of a list of numeric arguments. The
+-- product of the empty list is defined to be @1@.
+-- 
+-- Because standard numeric (*) is
+-- strict, this will not terminate early as expected when taking
+-- products with standard numeric @0@. Nonetheless, as with 'sum'',
+-- this product is apparently required to be element-lazy.
+-- 
+-- /O(n)/. Laws:
+-- 
+-- > product' [] == 1
+-- > forall x xs . product' (x : xs) == x * product' xs
+product' :: Num a => [a] -> a
+product' = foldl (*) 1
+
+-- | The 'maximum' function returns a maximum value from a
+-- non-empty list of 'Ord' elements by way of the 'max'
+-- function. If there are multiple maxima, the choice of
+-- which to return is unspecified. See also
+-- 'maximumBy'. Strict. /O(n)/. Laws:
+-- 
+-- > forall x . maximum [x] == x
+-- > forall x xs | not (null xs) .
+-- >   maximum (x : xs) == x `max` maximum xs
 maximum :: Ord a => [a] -> a
 maximum = foldl1' max
 
+-- | The 'minimum' function returns a minimum value from a
+-- non-empty list of 'Ord' elements by way of the 'min'
+-- function. If there are multiple minima, the choice of
+-- which to return is unspecified. See also
+-- 'minimumBy'. Strict. /O(n)/. Laws:
+-- 
+-- > forall x . minimum [x] == x
+-- > forall x xs | not (null xs) .
+-- >   minimum (x : xs) == x `min` maximum xs
 minimum :: Ord a => [a] -> a
 minimum = foldl1' min
 
+-- | The 'scanl' function is similar to 'foldl', 
+-- in that 'scanl' passes an accumulator from left to right.
+-- However, 'scanl' returns a list of successive accumulator values:
+-- 
+-- > scanl f a [x1, x2, ...] == [a, a `f` x1, (a `f` x1) `f` x2, ...]
+-- 
+-- Spine-strict. /O(n)/. Laws:
+-- 
+-- > forall f a . scanl f a [] == [a]
+-- > forall f a x xs . scanl f a (x : xs) == a : scanl f (f a x) xs
 scanl :: (a -> b -> a) -> a -> [b] -> [a]
 scanl f a0 =
   (a0 :) . snd . mapAccumL g a0
   where
     g a x = let a' = f a x in (a', a')
 
+-- | The 'scanl1' function is to 'scanl' as 'foldl1' is to 'foldl'.
+-- Spine-strict. /O(n)/. Laws:
+-- 
+-- > forall f x xs . scanl1 f (x : xs) == scanl f x xs
 scanl1 :: (a -> a -> a) -> [a] -> [a]
 scanl1 f (x : xs) = scanl f x xs
 
+-- | The 'scanr' function is similar to 'foldr', in that
+-- 'scanr' passes an accumulator from right to left.
+-- However, 'scanr' returns a list of accumulator values (in
+-- the order consistent with the
+-- definition). Spine-strict. /O(n)/. Laws:
+-- 
+-- > forall f a . scanr f a [] == [a]
+-- > forall f a b x xs | bs == scanr f a xs . 
+-- >   scanr f a (x : xs) == f x (head bs) : bs
 scanr :: (a -> b -> b) -> b -> [a] -> [b]
-scanr f z0 =
-  snd . foldr f' (z0, [z0])
+scanr f a0 xs =
+  foldr f' [a0] xs
   where
-    f' x (z, rs) =
-      let z' = x `f` z in
-      (z', z' : rs)
+    f' x as@(a : _) = f x a : as
 
+-- | The 'scanr1' function is to 'scanr' as 'foldr1' is to 'foldr'.
+-- /O(n)/. Laws:
+-- 
+-- > forall f x xs . scanr1 f (xs ++ [x]) == scanr f x xs
 scanr1 :: (a -> a -> a) -> [a] -> [a]
 scanr1 f xs =
-  let Just (_, ys) = foldr f' Nothing xs in ys
+  foldr f' [] xs
   where
-    f' x Nothing = Just (x, [x])
-    f' x (Just (z, rs)) =
-      let z' = x `f` z in
-      Just (z', z' : rs)
+    f' x [] = [x]
+    f' x as@(a : _) = f x a : as
 
 mapAccumL :: (a -> b -> (a, c)) -> a -> [b] -> (a, [c])
 mapAccumL f a0 =
