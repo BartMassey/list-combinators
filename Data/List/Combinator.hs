@@ -80,7 +80,7 @@ module Data.List.Combinator (
   foldl1,
   foldl1',
   foldr1,
-  -- * Special folds
+  -- * Special unfold
   concat,
   concatMap,
   and,
@@ -108,9 +108,7 @@ module Data.List.Combinator (
   replicate,
   cycle,
   -- ** Unfolding
-  folds,
   unfold,
-  unfold1,
   unfoldr,
   -- * Sublists
   take,
@@ -234,6 +232,8 @@ import Prelude hiding (
 import Data.Char (isSpace)
 
 
+-- XXX Need to write laws for this.
+
 -- | Given a function that accepts an element and a left and
 -- right context and produces a new left and right context,
 -- and given an initial left and right context and a list,
@@ -269,7 +269,8 @@ import Data.Char (isSpace)
 -- interesting discussion of "Q" from Backus in that thread
 -- that I would like to absorb someday.)  In any case, I
 -- think there is enough novelty in the use of 'fold' in
--- this library to be worth paying attention to.
+-- this library to be worth paying attention to. /O(n)/ plus
+-- the cost of evaluating the folding function.
 fold :: (x -> (l, r) -> (l, r)) -> (l, r) -> [x] -> (l, r)
 fold f lr0 xs0 =
   g lr0 xs0
@@ -548,7 +549,7 @@ foldr f b0 =
     f' x (l, r) = (l, f x r)
 
 -- | 'foldr1' is a variant of 'foldr' that 
--- folds with the accumulator set
+-- unfold with the accumulator set
 -- to the last element of the list; this
 -- requires that its list argument be nonempty.
 -- /O(n)/ plus the cost of evaluating @f@. Laws:
@@ -837,52 +838,85 @@ iterate f x0 =
 repeat :: a -> [a]
 repeat x = cycle [x]
 
--- This type is a generalization of the one in Data.List.
+-- | Given a count @n@ and an element @e@, produce a list of
+-- @e@s of length @n@.  This function is equivalent to
+-- 'Data.List.genericReplicate'. /O(n)/. Laws:
+-- 
+-- > forall n e . replicate n e == take n (repeat e)
 replicate :: Integral b => b -> a -> [a]
 replicate n = take n . repeat
 
+-- | Given an input list @xs@, return a
+-- list consisting of an infinite repetition of
+-- the elements of @xs@. /O(1)/ due to data recursion. Laws:
+-- 
+-- > forall xs . cycle xs == concat (repeat xs)
 cycle :: [a] -> [a]
 cycle xs =
   let ys = xs ++ ys in ys
 
--- This generalized fold may be enough to write fold?
-folds :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
-folds f (l, r) =
+-- XXX This generalized fold may be enough to write fold. I don't know.
+-- XXX Need to write laws for this.
+
+-- | This abstraction of 'fold' is a bidirectional
+-- generalization of 'unfoldr'. Given an initial left and
+-- right accumulator and a function that steps the
+-- accumulators forward from the left and right as with
+-- 'fold', keep stepping until the function indicates
+-- completion by returning 'Nothing' on the right. /O(n)/
+-- where /n/ is the number of unfolding steps, plus the cost
+-- of evaluating the folding function.
+unfold :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
+unfold f (l, r) =
   let (l1, mr1) = f (l, r2)
-      (l2, r2) = folds f (l1, r) in
+      (l2, r2) = unfold f (l1, r) in
   case mr1 of
     Nothing -> (l1, r)
     Just r1 -> (l2, r1)
 
-unfold :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
-unfold f (l0, rs0) =
-  folds g (l0, rs0)
-  where
-    g (l, rs) =
-      case f (l, rs) of
-        Just (r, (l', rs')) -> (l', Just (r : rs'))
-        Nothing -> (l, Nothing)
+-- XXX Need to write laws for this.
 
--- XXX This avoids using the recursive folds or explicit
--- recursion, but the invisible list cheeziness here is
--- totally bogus.
-unfold1 :: ((l, [r]) -> Maybe (r, (l, [r]))) -> (l, [r]) -> (l, [r])
-unfold1 f (l0, rs0) =
-  fold g (l0, rs0) (repeat undefined)
-  where
-    g _ (l, rs) =
-      case f (l, rs) of
-        Just (r, (l', rs')) -> (l', r : rs')
-        Nothing -> (l, rs)
-
+-- | The 'unfoldr' function is a \"dual\" to 'foldr': while
+-- 'foldr' reduces a list to a summary value, 'unfoldr'
+-- builds a list from a seed value.  The function takes the
+-- element and returns 'Nothing' if it is done producing the
+-- list. Otherwise, it returns @'Just' (a,b)@, in which
+-- case, @a@ is a prepended to the list and @b@ is used as
+-- the next element in a recursive call.  For example,
+--
+-- > iterate f == unfoldr (\x -> Just (x, f x))
+--
+-- In some cases, 'unfoldr' can undo a 'foldr' operation:
+--
+-- > unfoldr f' (foldr f z xs) == xs
+--
+-- This works if the following hold:
+--
+-- > f' (f x y) = Just (x,y)
+-- > f' z       = Nothing
+--
+-- A simple use of unfoldr:
+--
+-- > unfoldr (\b -> if b == 0 then Nothing else Just (b, b-1)) 10
+-- >  [10,9,8,7,6,5,4,3,2,1]
+--
+-- /O(n)/ plus the cost of evaluating @f@, where /n/ is the
+-- length of the produced list.
 unfoldr :: (b -> Maybe (a, b)) -> b -> [a]
 unfoldr f a =
-  snd $ unfold g (a, [])
+  snd $ h (a, [])
   where
     g (l, r) =
       case f l of
         Nothing -> Nothing
         Just (x, l') -> Just (x, (l', r))
+    h (l0, rs0) =
+      unfold g' (l0, rs0)
+      where
+        g' (l, rs) =
+          case g (l, rs) of
+            Just (r, (l', rs')) -> (l', Just (r : rs'))
+            Nothing -> (l, Nothing)
 
 -- This type is a generalization of the one in Data.List.
 take :: Integral b => b -> [a] -> [a]
@@ -1225,13 +1259,13 @@ mergeBy c xs1 xs2 =
       | x1 `c` x2 == GT = Just (x2, (x1 : x1s, x2s))
       | otherwise = Just (x1, (x1s, x2 : x2s))
 
--- This seems to need the general power of folds
+-- This seems to need the general power of unfold
 -- to get its work done? It's a O(n log n) merge
 -- sort, although probably not as fast as the one
 -- in the standard library.
 sortBy :: (a -> a -> Ordering) -> [a] -> [a]
 sortBy c xs0 =
-  case fst $ folds f (map (: []) xs0, undefined) of
+  case fst $ unfold f (map (: []) xs0, undefined) of
     [] -> []
     [xs] -> xs
   where
