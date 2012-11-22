@@ -815,12 +815,25 @@ mapAccumR f a0 =
       let (a', r') = f a x in
       (a', r' : rs)
 
+-- | @'iterate' f x@ returns an infinite list of repeated
+-- applications of @f@ to @x@:
+--     
+-- > iterate f x == [x, f x, f (f x), ...]
+-- 
+-- Time complexity of this is almost entirely dependent on the
+-- cost of evaluating @f@. Laws:
+-- 
+-- > forall f x . iterate f x == x : iterate f (f x)
 iterate :: (a -> a) -> a -> [a]
 iterate f x0 =
   unfoldr g x0
   where
     g x = Just (x, f x)
 
+-- | @'repeat' x@ is an infinite list, with @x@ the value of
+-- every element. /O(1)/. Laws:
+-- 
+-- > forall x . repeat x == x : repeat x
 repeat :: a -> [a]
 repeat x = cycle [x]
 
