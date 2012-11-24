@@ -177,8 +177,8 @@ module Data.List.Combinator (
   -- * \"Set\" Operations
   nub,
   delete,
-  listDiff,
-  listDiff',
+  (\\),
+  (\\*),
   union,
   union',
   intersect,
@@ -193,8 +193,8 @@ module Data.List.Combinator (
   notElemBy,
   nubBy,
   deleteBy,
-  listDiffBy,
-  listDiffBy',
+  deleteFirstsBy,
+  deleteFirstsBy',
   unionBy,
   unionBy',
   intersectBy,
@@ -268,7 +268,7 @@ import Prelude hiding (
   lines,
   words,
   unlines,
-  unwords )
+  unwords)
 import Data.Char (isSpace)
 
 
@@ -1844,12 +1844,11 @@ nub = nubBy (==)
 delete :: Eq a => a -> [a] -> [a]
 delete = deleteBy (==)
 
--- Instead of (\\)
-listDiff :: Eq a => [a] -> [a] -> [a]
-listDiff = listDiffBy (==)
+(\\) :: Eq a => [a] -> [a] -> [a]
+(\\) = deleteFirstsBy (==)
 
-listDiff' :: Eq a => [a] -> [a] -> [a]
-listDiff' = listDiffBy' (==)
+(\\*) :: Eq a => [a] -> [a] -> [a]
+(\\*) = deleteFirstsBy' (==)
 
 union :: Eq a => [a] -> [a] -> [a]
 union = unionBy (==)
@@ -1891,26 +1890,26 @@ deleteBy p t es =
       | l && p x t = (False, r)
       | otherwise = (l, x : r)
 
-listDiffBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-listDiffBy f xs ys =
+deleteFirstsBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+deleteFirstsBy f xs ys =
   foldl (flip (deleteBy f)) xs ys
 
--- This definition of listDiffBy makes the result canonical
+-- This definition of deleteFirstsBy makes the result canonical
 -- on all inputs.
-listDiffBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-listDiffBy' f xs ys =
+deleteFirstsBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+deleteFirstsBy' f xs ys =
   filter (\x -> notElemBy f x (nubBy f ys)) (nubBy f xs)
 
 unionBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 unionBy f xs ys =
-  xs ++ listDiffBy f (nubBy f ys) xs
+  xs ++ deleteFirstsBy f (nubBy f ys) xs
 
 -- The standard definition of unionBy is maximally lazy:
 -- this one makes the result canonical on all inputs.
 unionBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 unionBy' f xs ys =
   let xs' = nubBy f xs in
-  xs' ++ listDiffBy f (nubBy f ys) xs'
+  xs' ++ deleteFirstsBy f (nubBy f ys) xs'
 
 intersectBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 intersectBy f xs ys =
