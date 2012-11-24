@@ -112,6 +112,7 @@ module Data.List.Combinator (
   unfoldr,
   unfoldl,
   -- * Sublists
+  -- ** Extracting Sublists
   take,
   drop,
   splitAt,
@@ -129,6 +130,7 @@ module Data.List.Combinator (
   group,
   inits,
   tails,
+  -- ** Predicates
   isPrefixOf,
   isSuffixOf,
   isInfixOf,
@@ -1308,26 +1310,60 @@ groupBy p xs0 =
       Just (x : g, xs')
 
 -- Adapted from teh standard library.
+
+-- | The 'inits' function returns all initial segments of the argument,
+-- shortest first.  For example:
+-- 
+-- > inits "abc" == ["","a","ab","abc"]
+-- 
+-- /O(n^2)/. Laws:
+-- 
+-- > inits [] == [[]]
+-- > forall x xs . inits (x : xs) == map (x :) (inits xs)
 inits :: [a] -> [[a]]
 inits xs =
   foldr f [[]] xs
   where
     f x a = [] : map (x :) a
 
--- Funny termination. Even has the required strictness
--- property LOL.
+-- | The 'tails' function returns all final segments of the argument,
+-- longest first.  For example,
+-- 
+-- > tails "abc" == ["abc", "bc", "c",""]
+-- 
+-- 
+-- /O(n^2)/. Laws:
+-- 
+-- > tails [] == [[]]
+-- > forall x xs . tails (xs ++ [x]) == map (++ [x]) (tails xs) ++ [[]]
 tails :: [a] -> [[a]]
 tails xs =
-  snd $ fold f (xs, [[]]) xs
+  foldr f [[]] xs
   where
-    f _ (y@(_ : ys), r) = (ys, y : r)
+    f x as@(a : _) = (x : a) : as
 
+-- | The 'isPrefixOf' function takes two lists and returns
+-- 'True' iff the first list is a prefix of the second.
+-- /O(n)/. Laws:
+-- 
+-- > forall ps xs ys | stripPrefix ps xs == Just ys . 
+-- >   isPrefix ps xs == True
+-- > forall ps xs | stripPrefix ps xs == Nothing . 
+-- >   isPrefix ps xs == False
 isPrefixOf :: Eq a => [a] -> [a] -> Bool
 isPrefixOf xs ys =
   case stripPrefix xs ys of
     Nothing -> False
     _ -> True
 
+-- | The 'isPrefixOf' function takes two lists and returns
+-- 'True' iff the first list is a suffix of the second.
+-- /O(n)/. Laws:
+-- 
+-- > forall ss xs ys | stripSuffix ss xs == Just ys . 
+-- >   isSuffix ss xs == True
+-- > forall ss xs | stripSuffix ss xs == Nothing . 
+-- >   isSuffix ss xs == False
 isSuffixOf :: Eq a => [a] -> [a] -> Bool
 isSuffixOf xs ys =
   case stripSuffix xs ys of
@@ -1336,6 +1372,21 @@ isSuffixOf xs ys =
 
 -- XXX Quadratic, but I doubt the standard library
 -- is full of Boyer-Moore code.
+
+-- | The 'isInfixOf' function takes two lists and returns 'True'
+-- iff the first list is contained, wholly and intact,
+-- anywhere within the second. Some examples:
+-- 
+-- >isInfixOf "Haskell" "I really like Haskell." == True
+-- >isInfixOf "Ial" "I really like Haskell." == False
+-- 
+-- /O(m n)/ where /m/ is the length of the prefix and /n/ the
+-- length of the list searched. Laws:
+-- 
+-- > forall xs xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
+-- >   isInfixOf xs2 xs == True
+-- > forall xs . nexists xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
+-- >   isInfixOf xs2 xs == False
 isInfixOf :: Eq a => [a] -> [a] -> Bool
 isInfixOf xs ys = any (isPrefixOf xs) (tails ys)
 
