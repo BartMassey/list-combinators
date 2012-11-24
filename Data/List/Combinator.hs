@@ -63,6 +63,7 @@ module Data.List.Combinator (
   null,
   length,
   length',
+  genericLength,
   -- * List Transformations
   map,
   reverse,
@@ -173,6 +174,7 @@ module Data.List.Combinator (
   words,
   unlines,
   unwords,
+  -- * \"Set\" Operations
   nub,
   delete,
   listDiff,
@@ -181,10 +183,12 @@ module Data.List.Combinator (
   union',
   intersect,
   intersect',
+  -- * Ordered Lists
   merge,
   sort,
   insert,
   insert',
+  -- * The \"By\" Operations
   elemBy,
   notElemBy,
   nubBy,
@@ -209,8 +213,7 @@ module Data.List.Combinator (
   isInfixOfBy,
   lookupBy,
   elemIndexBy,
-  elemIndicesBy,
-  genericLength ) where
+  elemIndicesBy) where
 
 import Prelude hiding (
   (++),
@@ -391,6 +394,20 @@ length xs = genericLength xs
 -- >   length' (x : xs) == 1 + length' xs
 length' :: [a] -> Int
 length' xs = genericLength xs
+
+-- | Returns the length of a list with less than or equal to
+-- @'maxBound' t@ elements as a value of type @t@, where @t@
+-- is an 'Integral' type being used for list length. Does
+-- something undefined on longer lists. Not the default type
+-- for the length function, since type inference tends to
+-- get lost and default badly if the length function does
+-- not constrain it. Strict. /O(n)/. Laws:
+-- 
+-- > length' [] == 0
+-- > forall x xs | length xs < maxBound :: Int .
+-- >   length' (x : xs) == 1 + length' xs
+genericLength :: Integral a => [b] -> a
+genericLength xs = foldl' (\a _ -> a + 1) 0 xs
 
 -- | @'map' f xs@ applies @f@ to each element
 -- of @xs@ in turn and returns a list of the results, i.e.,
@@ -1756,6 +1773,19 @@ unzip7 =
     f (a, b, c, d, e, f, g) (as, bs, cs, ds, es, fs, gs) = 
       (a : as, b : bs, c : cs, d : ds, e : es, f : fs, g : gs)
 
+-- | The 'lines' function breaks a string up into a list of
+-- strings at newline characters. A trailing newline
+-- character will not cause an empty string at the end of
+-- the list, unless the input string consists entirely of
+-- newlines. The resulting strings do not contain newlines.
+-- /O(n)/. Laws:
+-- 
+-- > lines "" == []
+-- > lines "\n" == []
+-- > forall xs xss | xss == lines xs .
+-- >   lines ('\n' : xs) == "" : xss
+-- > forall x xs xs1 xss | x != '\n' && (xs1 : xss) == lines xs .
+-- >   lines (x : xs) == (x : xs1) : xss
 lines :: String -> [String]
 lines "" = []
 lines s =
@@ -1768,6 +1798,17 @@ lines s =
         ('\n' : ls@(_ : _)) -> Just (l, Just ls)
         _ -> Just (l, Nothing)
 
+-- | The 'words' function breaks a string up into a list of
+-- words at sequences of white space (as defined by
+-- 'Data.Char.isSpace'), discarding any leading or trailing
+-- whitespace. /O(n)/. Laws:
+-- 
+-- > forall xs | all isSpace xs . words xs == []
+-- > forall xs ys z zs 
+-- >  | all isSpace xs &&
+-- >    all (not . isSpace) ys &&
+-- >    isSpace z .
+-- >   words (xs ++ ys ++ (z : zs)) == ys : words (z : zs)
 words :: String -> [String]
 words s0 =
   unfoldr f s0
@@ -1780,10 +1821,20 @@ words s0 =
       where
         (_, ws) = span isSpace s
 
+-- | The 'unlines' function appends a newline to each
+-- element | of its string list argument and concatenates
+-- the result. /O(n)/. Laws:
+-- 
+-- > forall xss . unlines xss == intercalate "\n" xss ++ "\n"
 unlines :: [String] -> String
 unlines [] = ""
 unlines ls = intercalate "\n" ls ++ "\n"
 
+-- | The 'unwords' function places a space character between each
+-- element of its string list argument and concatenates
+-- the result. /O(n)/. Laws:
+-- 
+-- > forall xss . unwords xss == intercalate " " xss
 unwords :: [String] -> String
 unwords ws = intercalate " " ws
 
@@ -1955,9 +2006,3 @@ minimumBy c xs =
     x1 `f` x2
       | x1 `c` x2 == GT = x2
       | otherwise = x1
-
--- The rest of the functions are already generic,
--- because why not? Length not so much, since one
--- tends to use it to anchor type constraints.
-genericLength :: Num a => [b] -> a
-genericLength xs = foldl' (\a _ -> a + 1) 0 xs
