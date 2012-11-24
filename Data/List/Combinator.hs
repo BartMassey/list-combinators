@@ -931,34 +931,89 @@ unfoldl f a0 =
         Just (a', x) ->
           ((a', x : xs), Just ())
 
--- This type is a generalization of the one in Data.List.
+-- | An unfoldl' is provided for the same reasons as
+-- 'foldl''.  Element-strict (but not spine-strict). /O(n)/
+-- plus the cost of evaluating the unfolding function.
+unfoldl' :: (a -> Maybe (a, b)) -> a -> [b]
+unfoldl' f a0 =
+  snd $ fst $ unfold g ((a0, []), ())
+  where
+    g ((a, xs), _) =
+      case f a of
+        Nothing -> 
+          ((a `seq` a, xs), Nothing)
+        Just (a', x) ->
+          ((a' `seq` a', x : xs), Just ())
+
+
+-- | @'take' n@, applied to a list @xs@, returns the prefix of @xs@
+-- of length @n@, or @xs@ itself if @n > 'length' xs@.
+-- Some examples:
+-- 
+-- > take 5 "Hello World!" == "Hello"
+-- > take 3 [1,2,3,4,5] == [1,2,3]
+-- > take 3 [1,2] == [1,2]
+-- > take 3 [] == []
+-- > take (-1) [1,2] == []
+-- > take 0 [1,2] == []
+-- 
+-- This function is equivalent to
+-- 'Data.List.genericTake'. /O(n)/ where /n/ is
+-- the number of elements taken. Laws:
+-- 
+-- > forall n xs | n <= 0 . take n xs == []
+-- > forall n | n >= 0 . take n [] == []
+-- > forall n (x : xs) | n > 0 . 
+-- >   take n (x : xs) == x : take (n - 1) xs
 take :: Integral b => b -> [a] -> [a]
-take n0 =
-  snd . fold take1 (n0, [])
-  where
-    take1 _ (0, _) = (undefined, [])
-    take1 r (n, rs) | n > 0 = (n - 1, r : rs)
-    take1 _ _ = error "take with negative count"
+take n = fst . splitAt n
 
--- This type is a generalization of the one in Data.List.
+-- | 'drop' @n xs@ returns the suffix of @xs@
+-- after the first @n@ elements, or @[]@ if @n > 'length' xs@.
+-- Some examples:
+-- 
+-- > drop 6 "Hello World!" == "World!"
+-- > drop 3 [1,2,3,4,5] == [4,5]
+-- > drop 3 [1,2] == []
+-- > drop 3 [] == []
+-- > drop (-1) [1,2] == [1,2]
+-- > drop 0 [1,2] == [1,2]
+-- 
+-- This function is equivalent to
+-- 'Data.List.genericDrop'. /O(n)/ where /n/ is
+-- the number of elements dropped. Laws:
+-- 
+-- > forall n xs | n <= 0 . drop n xs == xs
+-- > forall n | n >= 0 . drop n [] == []
+-- > forall n (x : xs) | n > 0 . 
+-- >   drop n (x : xs) == drop (n - 1) xs
 drop :: Integral b => b -> [a] -> [a]
-drop n0 =
-  snd . fold drop1 (n0, [])
-  where
-    drop1 r (0, rs) = (0, r : rs)
-    drop1 _ (n, rs) | n > 0 = (n - 1, rs)
-    drop1 _ _ = error "drop with negative count"
+drop n = snd . splitAt n
 
--- This type is a generalization of the one in Data.List.
--- This routine is optimized to be one-pass, which is
--- probably overkill.
+-- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
+-- length @n@ and second element is the remainder of the list:
+-- 
+-- > splitAt 6 "Hello World!" == ("Hello ","World!")
+-- > splitAt 3 [1,2,3,4,5] == ([1,2,3],[4,5])
+-- > splitAt 1 [1,2,3] == ([1],[2,3])
+-- > splitAt 3 [1,2,3] == ([1,2,3],[])
+-- > splitAt 4 [1,2,3] == ([1,2,3],[])
+-- > splitAt 0 [1,2,3] == ([],[1,2,3])
+-- > splitAt (-1) [1,2,3] == ([],[1,2,3])
+-- 
+-- @splitAt n xs@ is equivalent to @('take' n xs, 'drop' n xs)@. [This
+-- is a generalization of 'Data.List.genericSplitAt' where
+-- the top-level tuple is always returned even if /n/ is bottom.]
+-- /O(n)/ where /n/ is the split point. Laws:
+-- 
+-- > forall n xs . splitAt n xs = (take n xs, drop n xs)
 splitAt :: Integral b => b -> [a] -> ([a], [a])
 splitAt n0 xs =
-  let ((_, r), l) = fold f ((0, xs), []) xs in (l, r)
+  snd $ fold f (n0, ([], [])) xs
   where
-    f x ((n, l), r)
-      | n >= n0 || null l = ((n, l), [])
-      | otherwise = ((n + 1, tail l), x : r)
+    f x ~(n, ~(ts, ds))
+      | n <= 0 = (n - 1, ([], x : ds))
+      | otherwise = (n - 1, (x : ts, ds))
 
 takeWhile :: (a -> Bool) -> [a] -> [a]
 takeWhile p xs = fst $ span p xs
