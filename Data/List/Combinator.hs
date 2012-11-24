@@ -143,21 +143,32 @@ module Data.List.Combinator (
   find,
   filter,
   partition,
+  -- * Indexing Lists
+  (!!),
   elemIndex,
   elemIndices,
   findIndex,
   findIndices,
-  -- * Indexing Lists
-  (!!),
+  -- * Zipping and Unzipping Lists
   zip,
   zip3,
   zip4,
+  zip5,
+  zip6,
+  zip7,
   zipWith,
   zipWith3,
   zipWith4,
+  zipWith5,
+  zipWith6,
+  zipWith7,
   unzip,
   unzip3,
   unzip4,
+  unzip5,
+  unzip6,
+  unzip7,
+  -- * Special Lists
   lines,
   words,
   unlines,
@@ -1615,17 +1626,52 @@ findIndices p xs =
 
 -- This idea comes from the standard library.
 
+-- | The 'zip'function takes two lists and returns a list of
+-- corresponding pairs. If one input list is short, excess
+-- elements of the longer list are discarded. 'zip' is a 
+-- special case of 'zipWith' with the tupling function @(,)@ 
+-- as the operator. /O(n)/. Laws:
+-- 
+-- forall xs . zip [] xs == []
+-- forall xs . zip xs [] == []
+-- forall x xs y ys . zip (x : xs) (y : ys) == (x, y) : zip xs ys
 zip :: [a] -> [b] -> [(a, b)]
 zip =  zipWith (,)
 
+-- | 'zip' from 3 lists to 3-tuples.
 zip3 :: [a] -> [b] -> [c] -> [(a, b, c)]
 zip3 =  zipWith3 (,,)
 
+-- | 'zip' from 4 lists to 4-tuples.
 zip4 :: [a] -> [b] -> [c] -> [d] -> [(a, b, c, d)]
 zip4 =  zipWith4 (,,,)
 
--- No, I don't believe anyone uses higher-arity zips, so there.
+-- | 'zip' from 5 lists to 5-tuples.
+zip5 :: [a] -> [b] -> [c] -> [d] -> [e] -> [(a, b, c, d, e)]
+zip5 =  zipWith5 (,,,,)
 
+-- | 'zip' from 6 lists to 6-tuples.
+zip6 :: [a] -> [b] -> [c] -> [d] -> [e] -> [f] -> [(a, b, c, d, e, f)]
+zip6 =  zipWith6 (,,,,,)
+
+-- | 'zip' from 7 lists to 7-tuples.
+zip7 :: [a] -> [b] -> [c] -> [d] -> [e] -> [f] -> [g] 
+     -> [(a, b, c, d, e, f, g)]
+zip7 =  zipWith7 (,,,,,,)
+
+-- I don't believe anyone uses higher-arity zips, but I feel constrained
+-- by the standard library.
+
+
+-- | The 'zipWith' function generalises 'zip' by zipping
+-- with the function given as the first argument, instead of
+-- a tupling function. For example, @'zipWith' (+)@ is
+-- applied to two lists to produce the list of corresponding
+-- sums. /O(n)/. Laws: 
+-- 
+-- forall f xs . zipWith f [] xs == []
+-- forall f xs . zipWith f xs [] == []
+-- forall f x xs y ys . zipWith (x : xs) (y : ys) == f x y : zipWith xs ys
 zipWith :: (a -> b -> c) -> [a] -> [b] -> [c]
 zipWith f xs1 xs2 =
   unfoldr g (xs1, xs2)
@@ -1633,29 +1679,82 @@ zipWith f xs1 xs2 =
     g (l1 : l1s, l2 : l2s) = Just (f l1 l2, (l1s, l2s))
     g _ = Nothing
 
+-- | 'zipWith' with 3 lists and a 3-argument function.
 zipWith3 :: (a -> b -> c -> d) -> [a] -> [b] -> [c] -> [d]
 zipWith3 f xs1 xs2 = zipWith ($) (zipWith f xs1 xs2)
 
+-- | 'zipWith' with 4 lists and a 4-argument function.
 zipWith4 :: (a -> b -> c -> d -> e) -> [a] -> [b] -> [c] -> [d] -> [e]
 zipWith4 f xs1 xs2 xs3 = zipWith ($) (zipWith3 f xs1 xs2 xs3)
 
+-- | 'zipWith' with 5 lists and a 5-argument function.
+zipWith5 :: (a -> b -> c -> d -> e -> f) 
+         -> [a] -> [b] -> [c] -> [d] -> [e] -> [f]
+zipWith5 f xs1 xs2 xs3 xs4 = 
+  zipWith ($) (zipWith4 f xs1 xs2 xs3 xs4)
+
+-- | 'zipWith' with 6 lists and a 6-argument function.
+zipWith6 :: (a -> b -> c -> d -> e -> f -> g) 
+         -> [a] -> [b] -> [c] -> [d] -> [e] -> [f] -> [g]
+zipWith6 f xs1 xs2 xs3 xs4 xs5 = 
+  zipWith ($) (zipWith5 f xs1 xs2 xs3 xs4 xs5)
+
+-- | 'zipWith' with 7 lists and a 7-argument function.
+zipWith7 :: (a -> b -> c -> d -> e -> f -> g -> h) 
+         -> [a] -> [b] -> [c] -> [d] -> [e] -> [f] -> [g] -> [h]
+zipWith7 f xs1 xs2 xs3 xs4 xs5 xs6 = 
+  zipWith ($) (zipWith6 f xs1 xs2 xs3 xs4 xs5 xs6)
+
+-- | The 'unzip' function transforms a list of pairs into a
+-- list of first components and a list of second
+-- components. /O(n)/. Laws:
+-- 
+-- > unzip [] == ([], [])
+-- > forall a b xs as bs | (as, bs) == unzip xs . 
+-- >   unzip ((a, b) : xs) == (a : as, b : bs)
 unzip :: [(a, b)] -> ([a], [b])
 unzip =
   foldr f ([], [])
   where
     f (a, b) (as, bs) = (a : as, b : bs)
 
+-- | Unzip a 3-tuple into 3 lists.
 unzip3 :: [(a, b, c)] -> ([a], [b], [c])
 unzip3 =
   foldr f ([], [], [])
   where
     f (a, b, c) (as, bs, cs) = (a : as, b : bs, c : cs)
 
+-- | Unzip a 4-tuple into 4 lists.
 unzip4 :: [(a, b, c, d)] -> ([a], [b], [c], [d])
 unzip4 =
   foldr f ([], [], [], [])
   where
     f (a, b, c, d) (as, bs, cs, ds) = (a : as, b : bs, c : cs, d : ds)
+
+-- | Unzip a 5-tuple into 5 lists.
+unzip5 :: [(a, b, c, d, e)] -> ([a], [b], [c], [d], [e])
+unzip5 =
+  foldr f ([], [], [], [], [])
+  where
+    f (a, b, c, d, e) (as, bs, cs, ds, es) = 
+      (a : as, b : bs, c : cs, d : ds, e : es)
+
+-- | Unzip a 6-tuple into 6 lists.
+unzip6 :: [(a, b, c, d, e, f)] -> ([a], [b], [c], [d], [e], [f])
+unzip6 =
+  foldr f ([], [], [], [], [], [])
+  where
+    f (a, b, c, d, e, f) (as, bs, cs, ds, es, fs) = 
+      (a : as, b : bs, c : cs, d : ds, e : es, f : fs)
+
+-- | Unzip a 7-tuple into 7 lists.
+unzip7 :: [(a, b, c, d, e, f, g)] -> ([a], [b], [c], [d], [e], [f], [g])
+unzip7 =
+  foldr f ([], [], [], [], [], [], [])
+  where
+    f (a, b, c, d, e, f, g) (as, bs, cs, ds, es, fs, gs) = 
+      (a : as, b : bs, c : cs, d : ds, e : es, f : fs, g : gs)
 
 lines :: String -> [String]
 lines "" = []
