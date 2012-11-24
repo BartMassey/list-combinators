@@ -54,7 +54,7 @@
 
 module Data.List.Combinator (
   module Prelude,
-  -- * Basic functions
+  -- * Basic Functions
   (++),
   head,
   last,
@@ -63,7 +63,7 @@ module Data.List.Combinator (
   null,
   length,
   length',
-  -- * List transformations
+  -- * List Transformations
   map,
   reverse,
   intersperse,
@@ -72,7 +72,7 @@ module Data.List.Combinator (
   subsequences,
   permutations,
   insertions,
-  -- * Reducing lists (folding)
+  -- * Reducing Lists (Folding)
   fold,
   foldl,
   foldl',
@@ -80,7 +80,7 @@ module Data.List.Combinator (
   foldl1,
   foldl1',
   foldr1,
-  -- * Special unfold
+  -- * Special Folds
   concat,
   concatMap,
   and,
@@ -93,13 +93,13 @@ module Data.List.Combinator (
   product',
   maximum,
   minimum,
-  -- * Building lists
+  -- * Building Lists
   -- ** Scans
   scanl,
   scanl1,
   scanr,
   scanr1,
-  -- ** Accumulating maps
+  -- ** Accumulating Maps
   mapAccumL,
   mapAccumR,
   -- ** Infinite Lists
@@ -134,6 +134,7 @@ module Data.List.Combinator (
   isPrefixOf,
   isSuffixOf,
   isInfixOf,
+  -- * Searching Lists
   elem,
   notElem,
   lookup,
@@ -185,6 +186,9 @@ module Data.List.Combinator (
   minimumBy,
   stripPrefixBy,
   stripSuffixBy,
+  isPrefixOfBy,
+  isSuffixOfBy,
+  isInfixOfBy,
   genericLength ) where
 
 import Prelude hiding (
@@ -1344,29 +1348,49 @@ tails xs =
 
 -- | The 'isPrefixOf' function takes two lists and returns
 -- 'True' iff the first list is a prefix of the second.
--- /O(n)/. Laws:
+-- This is a special case of 'isPrefixOfBy' with '(==)' as
+-- the equality predicate.  /O(n)/. Laws:
 -- 
--- > forall ps xs ys | stripPrefix ps xs == Just ys . 
--- >   isPrefix ps xs == True
--- > forall ps xs | stripPrefix ps xs == Nothing . 
--- >   isPrefix ps xs == False
+-- forall ps xs . isPrefixOf ps xs == isPrefixOfBy (==) ps xs
 isPrefixOf :: Eq a => [a] -> [a] -> Bool
-isPrefixOf xs ys =
-  case stripPrefix xs ys of
+isPrefixOf xs ys = isPrefixOfBy (==) xs ys
+
+-- | The 'isPrefixOfBy' function takes two lists and returns
+-- 'True' iff the first list is a prefix of the second
+-- according to the given equality predicate.
+-- [New.] /O(n)/. Laws:
+-- 
+-- > forall p ps xs ys | stripPrefixBy p ps xs == Just ys . 
+-- >   isPrefixBy p ps xs == True
+-- > forall p ps xs | stripPrefixBy p ps xs == Nothing . 
+-- >   isPrefixBy p ps xs == False
+isPrefixOfBy :: (a -> a -> Bool) -> [a] -> [a] -> Bool
+isPrefixOfBy eq xs ys =
+  case stripPrefixBy eq xs ys of
     Nothing -> False
     _ -> True
 
--- | The 'isPrefixOf' function takes two lists and returns
+-- | The 'isSuffixOf' function takes two lists and returns
 -- 'True' iff the first list is a suffix of the second.
--- /O(n)/. Laws:
+-- This is a special case of 'isSuffixOfBy' with '(==)' as
+-- the equality predicate.  /O(n)/. Laws:
 -- 
--- > forall ss xs ys | stripSuffix ss xs == Just ys . 
--- >   isSuffix ss xs == True
--- > forall ss xs | stripSuffix ss xs == Nothing . 
--- >   isSuffix ss xs == False
+-- forall ss xs . isSuffixOf ss xs == isSuffixOfBy (==) ss xs
 isSuffixOf :: Eq a => [a] -> [a] -> Bool
-isSuffixOf xs ys =
-  case stripSuffix xs ys of
+isSuffixOf xs ys = isSuffixOfBy (==) xs ys
+
+-- | The 'isSuffixOfBy' function takes two lists and returns
+-- 'True' iff the first list is a suffix of the second
+-- according to the given equality predicate.
+-- [New.] /O(n)/. Laws:
+-- 
+-- > forall p ss xs ys | stripSuffixBy p ss xs == Just ys . 
+-- >   isSuffixOfBy p ss xs == True
+-- > forall p ss xs | stripSuffixBy p ss xs == Nothing . 
+-- >   isSuffixOfBy p ss xs == False
+isSuffixOfBy :: (a -> a -> Bool) -> [a] -> [a] -> Bool
+isSuffixOfBy eq xs ys =
+  case stripSuffixBy eq xs ys of
     Nothing -> False
     _ -> True
 
@@ -1380,15 +1404,30 @@ isSuffixOf xs ys =
 -- >isInfixOf "Haskell" "I really like Haskell." == True
 -- >isInfixOf "Ial" "I really like Haskell." == False
 -- 
--- /O(m n)/ where /m/ is the length of the prefix and /n/ the
+-- This is a special case of the 'isInfixOfBy' function 
+-- with '(==)' as the equality predicate. Laws:
+-- 
+-- > forall xs xs1 . isInfixOf xs ys == isInfixOfBy (==) xs ys
+isInfixOf :: Eq a => [a] -> [a] -> Bool
+isInfixOf xs ys = isInfixOfBy (==) xs ys
+
+-- | The 'isInfixOfBy' function takes two lists and returns
+-- 'True' iff the first list is contained, wholly and
+-- intact, anywhere within the second, as measured by the
+-- given equality predicate. Some examples:
+-- 
+-- >isInfixOfBy (==) "Haskell" "I really like Haskell." == True
+-- >isInfixOfBy (==) "Ial" "I really like Haskell." == False
+-- 
+-- [New.] /O(m n)/ where /m/ is the length of the prefix and /n/ the
 -- length of the list searched. Laws:
 -- 
--- > forall xs xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
--- >   isInfixOf xs2 xs == True
--- > forall xs . nexists xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
--- >   isInfixOf xs2 xs == False
-isInfixOf :: Eq a => [a] -> [a] -> Bool
-isInfixOf xs ys = any (isPrefixOf xs) (tails ys)
+-- > forall p xs xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
+-- >   isInfixOfBy p xs2 xs == True
+-- > forall p xs . nexists xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
+-- >   isInfixOfBy p xs2 xs == False
+isInfixOfBy :: (a -> a -> Bool) -> [a] -> [a] -> Bool
+isInfixOfBy eq xs ys = any (isPrefixOfBy eq xs) (tails ys)
 
 elem :: Eq a => a -> [a] -> Bool
 elem = elemBy (==)
