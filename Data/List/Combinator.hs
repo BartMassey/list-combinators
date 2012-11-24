@@ -117,9 +117,12 @@ module Data.List.Combinator (
   splitAt,
   takeWhile,
   dropWhile,
-  dropWhileEnd,
   span,
   break,
+  takeWhileEnd,
+  dropWhileEnd,
+  spanEnd,
+  breakEnd,
   stripPrefix,
   group,
   inits,
@@ -1048,8 +1051,61 @@ takeWhile p xs = fst $ span p xs
 dropWhile :: (a -> Bool) -> [a] -> [a]
 dropWhile p xs = snd $ span p xs
 
--- Weird new list function, but OK. Definition taken from
--- the standard library and cleaned up a bit.
+-- Weird new list functions, but OK.
+
+-- | The 'spanEnd' function returns a tuple whose second element
+-- is the largest suffix of its list argument @xs@ such that
+-- its predicate @p@ holds for every element; the first element
+-- of the returned tuple is the remaining prefix of the list.
+-- Some examples:
+-- 
+-- > spanEnd isSpace "foo bar \n" == ("foo bar", " \n")
+-- > spanEnd isSpace "foo bar" == ("foo bar", "")
+-- 
+-- @'spanEnd' p xs@ is equivalent to 
+-- @('takeWhileEnd' p xs, 'dropWhileEnd' p xs)@.
+-- [New.] /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- 
+-- forall p xs . spanEnd p xs == (takeWhileEnd p xs, dropWhileEnd p xs)
+spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
+spanEnd p xs =
+  snd $ foldr f (True, ([], [])) xs
+  where
+    f x ~(ok, (ts, ds))
+      | p x && ok = (True, (ts, x : ds))
+      | otherwise = (False, (x : ts, ds))
+
+-- | The 'breakEnd' function returns a tuple whose second element
+-- is the largest suffix of its list argument @xs@ such that
+-- its predicate @p@ does not hold for any element; the first element
+-- of the returned tuple is the remaining prefix of the list.
+-- Some examples:
+-- 
+-- > breakEnd isSpace "foo bar" == ("foo ", "bar")
+-- > breakEnd isSpace "foobar" == ("", "foobar")
+-- 
+-- @'breakEnd' p xs@ is equivalent to 
+-- @'spanEnd' (not p) xs@.
+-- [New.] /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- 
+-- forall p xs . breakEnd p xs == spanEnd (not p) xs
+breakEnd :: (a -> Bool) -> [a] -> ([a], [a])
+breakEnd p xs = spanEnd (not . p) xs
+
+-- | The 'takeWhileEnd' function returns the largest suffix of a list
+-- in which the given predicate holds for all elements.  Some examples:
+--
+-- > takeWhileEnd isSpace "foo\n" == "\n"
+-- > takeWhileEnd isSpace "foo bar" == ""
+-- 
+-- [New.] /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- 
+-- > forall p x xs | not (p x) . 
+-- >   takeWhileEnd p (xs ++ [x]) == []
+-- > forall p x xs | p x . 
+-- >   takeWhileEnd p (xs ++ [x]) == takeWhileEnd p xs ++ [x]
+takeWhileEnd :: (a -> Bool) -> [a] -> [a]
+takeWhileEnd p xs = snd $ spanEnd p xs
 
 -- | The 'dropWhileEnd' function drops the largest suffix of a list
 -- in which the given predicate holds for all elements.  Some examples:
@@ -1065,12 +1121,7 @@ dropWhile p xs = snd $ span p xs
 -- > forall p x xs | p x . 
 -- >   dropWhileEnd p (xs ++ [x]) == dropWhileEnd p xs
 dropWhileEnd :: (a -> Bool) -> [a] -> [a]
-dropWhileEnd p =
-  foldr f []
-  where
-    f x a
-      | p x && null a = [] 
-      | otherwise = x : a
+dropWhileEnd p xs = fst $ spanEnd p xs
 
 -- | 'span', applied to a predicate @p@ and a list @xs@,
 -- returns a tuple where the first element is the longest prefix
