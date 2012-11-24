@@ -879,21 +879,22 @@ unfold f (l, r) =
 -- | The 'unfoldr' function is a \"dual\" to 'foldr': while
 -- 'foldr' reduces a list to a summary value, 'unfoldr'
 -- builds a list from a seed value.  The function takes the
--- element and returns 'Nothing' if it is done producing the
--- list. Otherwise, it returns @'Just' (a,b)@, in which
--- case, @a@ is a prepended to the list and @b@ is used as
--- the next element in a recursive call.  For example,
+-- current accumulator and returns 'Nothing' if it is done
+-- producing the list. Otherwise, it returns @'Just' (x, a)@,
+-- in which case @x@ is a prepended to the list and @a@ is
+-- used as the next accumulator in a recursive call.  For
+-- example,
 --
 -- > iterate f == unfoldr (\x -> Just (x, f x))
 --
--- In some cases, 'unfoldr' can undo a 'foldr' operation:
+-- In some cases 'unfoldr' can undo a 'foldr' operation:
 --
--- > unfoldr f' (foldr f z xs) == xs
+-- > unfoldr f' (foldr f a0 xs) == xs
 --
 -- This works if the following hold:
 --
--- > f' (f x y) = Just (x,y)
--- > f' z       = Nothing
+-- > f' (f x a) = Just (x, a)
+-- > f' a0      = Nothing
 --
 -- A simple use of unfoldr:
 --
