@@ -115,6 +115,7 @@ module Data.List.Combinator (
   take,
   drop,
   splitAt,
+  splits,
   takeWhile,
   dropWhile,
   span,
@@ -124,6 +125,7 @@ module Data.List.Combinator (
   spanEnd,
   breakEnd,
   stripPrefix,
+  stripSuffix,
   group,
   inits,
   tails,
@@ -178,6 +180,8 @@ module Data.List.Combinator (
   insertBy',
   maximumBy,
   minimumBy,
+  stripPrefixBy,
+  stripSuffixBy,
   genericLength ) where
 
 import Prelude hiding (
@@ -1018,6 +1022,18 @@ splitAt n0 xs =
       | n <= 0 = (n - 1, ([], x : ds))
       | otherwise = (n - 1, (x : ts, ds))
 
+-- | Returns a list of all possible splits of its list
+-- argument as produced by 'splitAt' in order of
+-- increasing @n@. [New.] /O(n)/. Laws:
+-- 
+-- > forall n xs | length xs == n .
+-- >   splits xs == zipWith splitAt [0..n] (repeat xs)
+splits :: [a] -> [([a], [a])]
+splits xs0 =
+  snd $ fold f (0, [(xs0, [])]) xs0
+  where
+    f _ (n, xs) = (n + 1, splitAt n xs0 : xs)
+
 -- | The 'takeWhile' function applied to a predicate @p@ and
 -- a list @xs@ returns the longest prefix (possibly empty)
 -- of @xs@ of elements that satisfy @p@. Some examples:
@@ -1163,15 +1179,86 @@ span p xs =
 break :: (a -> Bool) -> [a] -> ([a], [a])
 break p = span (not . p)
 
+-- | The 'stripPrefix' function drops the given prefix from a list.
+-- It returns 'Just' the suffix of the list after the given prefix
+-- if the prefix matches, and 'Nothing' otherwise.
+-- Some examples:
+--
+-- > stripPrefix "foo" "foobar" == Just "bar"
+-- > stripPrefix "foo" "foo" == Just ""
+-- > stripPrefix "foo" "barfoo" == Nothing
+-- > stripPrefix "foo" "barfoobaz" == Nothing
+-- 
+-- /O(n)/ where /n/ is the length of the prefix. This is a
+-- special case of 'stripPrefixBy' with @(==)@ as the equality
+-- predicate. Laws:
+-- 
+-- > forall ps xs . stripPrefix ps xs == stripPrefixBy (==) ps xs
 stripPrefix  :: Eq a => [a] -> [a] -> Maybe [a]
-stripPrefix xs ys0 =
-  foldl f (Just ys0) xs
+stripPrefix ps xs = stripPrefixBy (==) ps xs
+
+-- | The 'stripPrefixBy' function drops the given prefix from a list.
+-- It returns 'Just' the suffix of the list after the given prefix
+-- if the prefix matches, and 'Nothing' otherwise. A user-supplied
+-- predicate is used for testing element equality.
+-- 
+-- /O(n)/ where /n/ is the length of the prefix.  Laws:
+-- 
+-- > forall eq xs . stripPrefixBy eq [] xs == Just xs
+-- > forall eq . stripPrefixBy eq [] [] == Just []
+-- > forall eq ps | not (null ps) . 
+-- >   stripPrefixBy eq ps [] == Nothing
+-- > forall eq p ps x xs | not (null ps) && not (null xs) && not (eq p x) . 
+-- >   stripPrefixBy eq (p : ps) (x : xs) == Nothing
+-- > forall eq p ps x xs | not (null ps) && not (null xs) && eq p x . 
+-- >   stripPrefixBy eq (p : ps) (x : xs) == stripPrefixBy eq ps xs
+stripPrefixBy  :: (a -> a -> Bool) -> [a] -> [a] -> Maybe [a]
+stripPrefixBy p ps xs =
+  foldl f (Just ps) xs
   where
     f Nothing _ = Nothing
     f (Just []) _ = Nothing
     f (Just (y : ys)) x
-      | x == y = Just ys
+      | p x y = Just ys
       | otherwise = Nothing
+
+-- | The 'stripSuffix' function drops the given suffix from a list.
+-- It returns 'Just' the prefix of the list before the given suffix
+-- if the suffix matches, and 'Nothing' otherwise. 'stripSuffix' is
+-- a special case of 'stripBy' using '(==)' as the equality predicate.
+-- Laws:
+-- 
+-- > forall ss xs . stripSuffix ss xs == stripSuffixBy (==) ss xs
+stripSuffix  :: Eq a => [a] -> [a] -> Maybe [a]
+stripSuffix = stripSuffixBy (==)
+
+-- | The 'stripSuffixBy' function drops the given suffix from a list.
+-- It returns 'Just' the prefix of the list before the given suffix
+-- if the suffix matches, and 'Nothing' otherwise. A user-supplied
+-- predicate is used for testing element equality.
+-- 
+-- [New.] /O(m n)/ where /m/ is the length of the prefix and /n/ is the
+-- length of the list..  Laws:
+-- 
+-- > forall eq xs . stripSuffixBy eq [] xs == Just xs
+-- > forall eq . stripSuffixBy eq [] [] == Just []
+-- > forall eq ss | not (null ss) . 
+-- >   stripSuffixBy eq ss [] == Nothing
+-- > forall eq s ss x xs | not (null ps) && not (null xs) && not (eq s x) . 
+-- >   stripSuffixBy eq (ss ++ [s]) (xs ++ [x]) == Nothing
+-- > forall eq s ss x xs | not (null ss) && not (null ss) && eq s x . 
+-- >   stripSuffixBy eq (ss ++ [s]) (xs ++ [x]) == stripSuffixBy eq ps xs
+stripSuffixBy  :: (a -> a -> Bool) -> [a] -> [a] -> Maybe [a]
+stripSuffixBy eq ps xs0 =
+  lookupBy (`equals` ps) $ map (\(x, y) -> (y, x)) $ splits xs0
+  where
+    xs `equals` ys =
+      case foldl f (True, xs) ys of
+        (True, []) -> True
+        _ -> False
+      where
+        f (_, []) _ = (False, [])
+        f (ok, (y : ys)) x = (ok && eq x y, ys)
 
 group :: Eq a => [a] -> [[a]]
 group xs0 =
@@ -1203,21 +1290,11 @@ isPrefixOf xs ys =
     Nothing -> False
     _ -> True
 
--- XXX Not so efficient, since it traverses the suffix
--- separately to reverse it, but I don't see how to fix
--- this.
 isSuffixOf :: Eq a => [a] -> [a] -> Bool
 isSuffixOf xs ys =
-  case foldr f (Just (reverse ys)) xs of
-    Just _ -> True
+  case stripSuffix xs ys of
     Nothing -> False
-  where
-    f _ Nothing = Nothing
-    f _ (Just []) = Nothing
-    f x (Just (c : cs))
-      | x == c = Just cs
-      | otherwise = Nothing
-
+    _ -> True
 
 -- XXX Quadratic, but I doubt the standard library
 -- is full of Boyer-Moore code.
@@ -1232,10 +1309,14 @@ notElem x0 = not . elem x0
   
 lookup :: Eq a => a -> [(a, b)] -> Maybe b
 lookup x0 xs =
+  lookupBy (== x0) xs
+
+lookupBy :: (a -> Bool) -> [(a, b)] -> Maybe b
+lookupBy p xs =
   foldr f Nothing xs
   where
     f (xk, xv) a
-      | xk == x0 = Just xv
+      | p xk = Just xv
       | otherwise = a
 
 find :: (a -> Bool) -> [a] -> Maybe a
