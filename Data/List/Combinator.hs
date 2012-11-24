@@ -904,15 +904,30 @@ unfold f (l, r) =
 -- /O(n)/ plus the cost of evaluating @f@, where /n/ is the
 -- length of the produced list.
 unfoldr :: (a -> Maybe (b, a)) -> a -> [b]
-unfoldr f a =
-  snd $ unfold g (a, [])
+unfoldr f a0 =
+  snd $ unfold g (a0, [])
   where
-    g (l, r) =
-      case f l of
+    g (a, xs) =
+      case f a of
         Nothing -> 
-          (l, Nothing)
-        Just (x, l') ->
-          (l', Just (x : r))
+          (a, Nothing)
+        Just (x, a') ->
+          (a', Just (x : xs))
+
+-- | An unfoldl is provided for completeness. [New.]
+-- Spine-strict. /O(n)/. Laws:
+-- 
+-- > forall f a . unfoldl f a == reverse (unfoldr (fmap swap . f) a)
+unfoldl :: (a -> Maybe (a, b)) -> a -> [b]
+unfoldl f a0 =
+  snd $ fst $ unfold g ((a0, []), ())
+  where
+    g ((a, xs), _) =
+      case f a of
+        Nothing -> 
+          ((a, xs), Nothing)
+        Just (a', x) ->
+          ((a', x : xs), Just ())
 
 -- This type is a generalization of the one in Data.List.
 take :: Integral b => b -> [a] -> [a]
