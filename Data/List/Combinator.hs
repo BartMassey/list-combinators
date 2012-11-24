@@ -110,6 +110,7 @@ module Data.List.Combinator (
   -- ** Unfolding
   unfold,
   unfoldr,
+  unfoldl,
   -- * Sublists
   take,
   drop,
@@ -497,11 +498,11 @@ foldl f a0 =
 -- which is not given here.
 foldl' :: (a -> b -> a) -> a -> [b] -> a
 foldl' f a0 xs0 =
-  foldl'' a0 xs0
+  g a0 xs0
   where
-    foldl'' a [] = a
-    foldl'' a (x : xs) =
-      (foldl'' $! ((f $! a) $! x)) $! xs
+    g a [] = a
+    g a (x : xs) =
+      (g $! ((f $! a) $! x)) $! xs
 
 -- XXX The strictness isn't right here currently, maybe?
 foldl'_0 :: (a -> b -> a) -> a -> [b] -> a
@@ -549,7 +550,7 @@ foldr f b0 =
     f' x (l, r) = (l, f x r)
 
 -- | 'foldr1' is a variant of 'foldr' that 
--- unfold with the accumulator set
+-- folds with the accumulator set
 -- to the last element of the list; this
 -- requires that its list argument be nonempty.
 -- /O(n)/ plus the cost of evaluating @f@. Laws:
@@ -915,7 +916,8 @@ unfoldr f a0 =
           (a', Just (x : xs))
 
 -- | An unfoldl is provided for completeness. [New.]
--- Spine-strict. /O(n)/. Laws:
+-- Spine-strict. /O(n)/ plus the cost of evaluating the
+-- unfolding function. Laws:
 -- 
 -- > forall f a . unfoldl f a == reverse (unfoldr (fmap swap . f) a)
 unfoldl :: (a -> Maybe (a, b)) -> a -> [b]
