@@ -135,13 +135,20 @@ module Data.List.Combinator (
   isSuffixOf,
   isInfixOf,
   -- * Searching Lists
+  -- ** Searching By Equality
   elem,
   notElem,
   lookup,
+  -- ** Searching With A Predicate
   find,
   filter,
   partition,
-  index,
+  elemIndex,
+  elemIndices,
+  findIndex,
+  findIndices,
+  -- * Indexing Lists
+  (!!),
   zip,
   zip3,
   zip4,
@@ -189,6 +196,9 @@ module Data.List.Combinator (
   isPrefixOfBy,
   isSuffixOfBy,
   isInfixOfBy,
+  lookupBy,
+  elemIndexBy,
+  elemIndicesBy,
   genericLength ) where
 
 import Prelude hiding (
@@ -234,6 +244,7 @@ import Prelude hiding (
   notElem,
   lookup,
   filter,
+  (!!),
   zip,
   zip3,
   zipWith,
@@ -1335,7 +1346,6 @@ inits xs =
 -- 
 -- > tails "abc" == ["abc", "bc", "c",""]
 -- 
--- 
 -- /O(n^2)/. Laws:
 -- 
 -- > tails [] == [[]]
@@ -1382,7 +1392,8 @@ isSuffixOf xs ys = isSuffixOfBy (==) xs ys
 -- | The 'isSuffixOfBy' function takes two lists and returns
 -- 'True' iff the first list is a suffix of the second
 -- according to the given equality predicate.
--- [New.] /O(n)/. Laws:
+-- [New.] /O(n)/ plus the cost of
+-- evaluating the predicate. Laws:
 -- 
 -- > forall p ss xs ys | stripSuffixBy p ss xs == Just ys . 
 -- >   isSuffixOfBy p ss xs == True
@@ -1420,7 +1431,8 @@ isInfixOf xs ys = isInfixOfBy (==) xs ys
 -- >isInfixOfBy (==) "Ial" "I really like Haskell." == False
 -- 
 -- [New.] /O(m n)/ where /m/ is the length of the prefix and /n/ the
--- length of the list searched. Laws:
+-- length of the list searched, plus the cost of
+-- evaluating the predicate. Laws:
 -- 
 -- > forall p xs xs1 xs2 xs3 | xs == xs1 ++ xs2 ++ xs3 .
 -- >   isInfixOfBy p xs2 xs == True
@@ -1429,16 +1441,67 @@ isInfixOf xs ys = isInfixOfBy (==) xs ys
 isInfixOfBy :: (a -> a -> Bool) -> [a] -> [a] -> Bool
 isInfixOfBy eq xs ys = any (isPrefixOfBy eq xs) (tails ys)
 
+-- | 'elem' is the list membership predicate. Given an
+-- element and a list, return 'True' if the element is found
+-- in the list. Return 'False' otherwise. /O(n)/. Laws:
+-- 
+-- > forall x xs . elem x xs == elemBy (==) x xs
 elem :: Eq a => a -> [a] -> Bool
 elem = elemBy (==)
 
+-- There should be an elemBy. Yes, it's just "any", but
+-- still...
+
+-- | 'elemBy' is the list membership predicate. Given an
+-- element and a list, return 'True' if the element is found
+-- in the list, according to the given equality
+-- function. Return 'False' otherwise. [New.] /O(n)/ plus
+-- the cost of evaluating the predicate. Laws:
+-- 
+-- > forall p x xs . elemBy p x xs == any (p x) xs
+elemBy :: (a -> a -> Bool) -> a -> [a] -> Bool
+elemBy eq x0 xs =  any (eq x0) xs
+
+-- OTOH, why is there a notElem? Did we really need that?
+
+-- | 'elem' is the list non-membership predicate. Given an
+-- element and a list, return 'False' if the element is found
+-- in the list. Return 'True' otherwise. [New.] /O(n)/. Laws:
+-- 
+-- > forall x xs . notElem x xs == not (elem x xs)
 notElem :: Eq a => a -> [a] -> Bool
 notElem x0 = not . elem x0
+
+-- | 'notElemBy' is the list non-membership predicate. Given
+-- an element and a list, return 'False' if the element is
+-- found in the list, according to the given equality
+-- function. Return 'True' otherwise. [New.] /O(n)/ plus the
+-- cost of evaluating the predicate. Laws:
+-- 
+-- > forall p x xs . notElemBy p x xs == not (elemBy p x xs)
+notElemBy :: (a -> a -> Bool) -> a -> [a] -> Bool
+notElemBy p x0 = not . elemBy p x0
   
+-- | @'lookupBy' p key assocs@ looks up @key@ in
+-- \"association list\" @assocs@ using the specified
+-- equality predicate @p@. This is a special case of
+-- 'lookupBy' with '(==)' as the equality predicate. Laws:
+-- 
+-- > forall k0 xs . lookup k0 xs == lookupBy (==) k0 xs
 lookup :: Eq a => a -> [(a, b)] -> Maybe b
 lookup x0 xs =
   lookupBy (== x0) xs
 
+-- | @'lookupBy' p key assocs@ looks up @key@ in
+-- \"association list\" @assocs@ using the specified
+-- equality predicate @p@. [New.] /O(n)/ plus the cost of
+-- evaluating the predicate. Laws:
+-- 
+-- > forall p k0 . lookupBy p k0 [] == Nothing
+-- > forall p k0 a xs .
+-- >   lookupBy p k0 ((k0, a) : xs) == Just a
+-- > forall p k0 k a xs | k /= k0 .
+-- >   lookupBy p k0 ((k, a) : xs) == lookupBy p k0 xs
 lookupBy :: (a -> Bool) -> [(a, b)] -> Maybe b
 lookupBy p xs =
   foldr f Nothing xs
@@ -1447,6 +1510,15 @@ lookupBy p xs =
       | p xk = Just xv
       | otherwise = a
 
+-- | The 'find' function takes a predicate and a list and
+-- returns the 'Just' the first element in the list for
+-- which the predicate hold; 'find' returns 'Nothing' if
+-- there is no element for which the predicate
+-- holds. /O(n)/. Laws:
+-- 
+-- > forall p . find p [] == Nothing
+-- > forall p x xs | p x == True . find p (x : xs) == Just x
+-- > forall p x xs | p x == False . find p (x : xs) == find p xs
 find :: (a -> Bool) -> [a] -> Maybe a
 find p xs =
   foldr f Nothing xs
@@ -1455,14 +1527,20 @@ find p xs =
       | p x = Just x
       | otherwise = a
 
+-- | 'filter', applied to a predicate and a list, returns the list of
+-- those elements that satisfy the predicate (in order). /O(n)/. Laws:
+-- 
+-- > forall p . filter p [] == []
+-- > forall p x xs | p x == True . filter p (x : xs) == x : filter p xs
+-- > forall p x xs | p x == False . filter p (x : xs) == filter p xs
 filter :: (a -> Bool) -> [a] -> [a]
-filter p xs =
-  foldr f [] xs
-  where
-    f x a
-      | p x = x : a
-      | otherwise = a
+filter p xs = fst $ partition p xs
 
+-- | The 'partition' function takes a predicate and a list
+-- and returns the pair of lists of elements which do and do
+-- not satisfy the predicate, respectively. /O(n)/. Laws:
+-- 
+-- > forall p xs . partition p xs == (filter p xs, filter (not . p) xs)
 partition :: (a -> Bool) -> [a] -> ([a], [a])
 partition p xs =
   foldr f ([], []) xs
@@ -1471,10 +1549,69 @@ partition p xs =
       | p x = (x : l, r)
       | otherwise = (l, x : r)
 
--- Instead of (!!)
-index :: Integral b => b -> [a] -> a
-index n xs =
-  let Just x = lookup n (zip [0..] xs) in x
+(!!) :: Integral b => [a] -> b -> a
+xs !! n = let Just x = lookup n (zip [0..] xs) in x
+
+-- These elem and find functions mostly come from the standard library.
+
+-- | The 'elemIndex' function returns the index of the first element
+-- in the given list which is equal (by '==') to the query element,
+-- or 'Nothing' if there is no such element. This is a special
+-- case of 'elemIndexBy'. Laws:
+-- 
+-- forall x xs . elemIndex x xs == elemIndexBy (==) x xs
+elemIndex       :: Eq a => a -> [a] -> Maybe Int
+elemIndex x xs = elemIndexBy (==) x xs
+
+-- | The 'elemIndexBy' function returns the index of the
+-- first element in the given list which is equal (by the
+-- given predicate) to the query element, or 'Nothing' if
+-- there is no such element. This is a special case of
+-- 'findIndex'. [New.] /O(n)/ plus the cost of evaluating the
+-- predicate. Laws:
+-- 
+-- forall p x xs . elemIndexBy p x xs == findIndex (p x) xs
+elemIndexBy :: (a -> a -> Bool) -> a -> [a] -> Maybe Int
+elemIndexBy eq x xs = findIndex (eq x) xs
+
+-- | The 'elemIndices' function extends 'elemIndex', by
+-- returning the indices of all elements equal (by ==) to
+-- the query element, in ascending order. /O(n)/. Laws:
+-- 
+-- > forall x xs . elemIndices x xs == elemIndicesBy (==) x xs
+elemIndices :: Eq a => a -> [a] -> [Int]
+elemIndices x xs = elemIndicesBy (==) x xs
+
+-- | The 'elemIndicesBy' function extends 'findIndices', by
+-- returning the indices of all elements equal (by the given
+-- equality function) to the query element, in ascending
+-- order. [New.] /O(n)/ plus the cost of evaluating the
+-- predicate. Laws:
+-- 
+-- > forall p x xs . elemIndicesBy p x xs == findIndicesBy (p x) xs
+elemIndicesBy :: (a -> a -> Bool) -> a -> [a] -> [Int]
+elemIndicesBy p x xs = findIndices (p x) xs
+
+-- | The 'findIndex' function takes a predicate and a list and returns
+-- the index of the first element in the list satisfying the predicate,
+-- or 'Nothing' if there is no such element. It is a special
+-- case of 'findIndex' which returns just the first index. /O(n)/. Laws:
+-- 
+-- > forall p xs | findIndices p xs == [] . 
+-- >   findIndex p xs == Nothing
+-- > forall p xs y ys | findIndices p xs == (y : ys) . 
+-- >   findIndex p xs == Just y
+findIndex :: (a -> Bool) -> [a] -> Maybe Int
+findIndex p xs = 
+  case findIndices p xs of
+    [] -> Nothing
+    (x : _) -> Just x
+
+-- | The 'findIndices' function extends 'findIndex', by returning the
+-- indices of all elements satisfying the predicate, in ascending order.
+findIndices :: (a -> Bool) -> [a] -> [Int]
+findIndices p xs =
+  map fst $ filter (p . snd) $ zip [0..] xs
 
 -- This idea comes from the standard library.
 
@@ -1587,15 +1724,6 @@ insert = insertBy compare
 
 insert' :: Ord a => a -> [a] -> [a]
 insert' = insertBy' compare
-
--- There should be an elemBy. Yes, it's just
--- "any", but still...
-elemBy :: (a -> a -> Bool) -> a -> [a] -> Bool
-elemBy p x0 xs =  any (p x0) xs
-
--- OTOH, why is there a notElem? Did we really need that?
-notElemBy :: (a -> a -> Bool) -> a -> [a] -> Bool
-notElemBy p x0 = not . elemBy p x0
 
 nubBy :: (a -> a -> Bool) -> [a] -> [a]
 nubBy f =
