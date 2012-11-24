@@ -980,8 +980,8 @@ take n = fst . splitAt n
 -- > drop 0 [1,2] == [1,2]
 -- 
 -- This function is equivalent to
--- 'Data.List.genericDrop'. /O(n)/ where /n/ is
--- the number of elements dropped. Laws:
+-- 'Data.List.genericDrop'. /O(n)/.
+-- Laws:
 -- 
 -- > forall n xs | n <= 0 . drop n xs == xs
 -- > forall n | n >= 0 . drop n [] == []
@@ -1002,9 +1002,9 @@ drop n = snd . splitAt n
 -- > splitAt (-1) [1,2,3] == ([],[1,2,3])
 -- 
 -- @splitAt n xs@ is equivalent to @('take' n xs, 'drop' n xs)@. [This
--- is a generalization of 'Data.List.genericSplitAt' where
+-- is a generalization of 'Data.List.genericSplitAt' in that
 -- the top-level tuple is always returned even if /n/ is bottom.]
--- /O(n)/ where /n/ is the split point. Laws:
+-- /O(n)/. Laws:
 -- 
 -- > forall n xs . splitAt n xs = (take n xs, drop n xs)
 splitAt :: Integral b => b -> [a] -> ([a], [a])
@@ -1015,14 +1015,49 @@ splitAt n0 xs =
       | n <= 0 = (n - 1, ([], x : ds))
       | otherwise = (n - 1, (x : ts, ds))
 
+-- | The 'takeWhile' function applied to a predicate @p@ and
+-- a list @xs@ returns the longest prefix (possibly empty)
+-- of @xs@ of elements that satisfy @p@. Some examples:
+-- 
+-- > takeWhile (< 3) [1,2,3,4,1,2,3,4] == [1,2]
+-- > takeWhile (< 9) [1,2,3] == [1,2,3]
+-- > takeWhile (< 0) [1,2,3] == []
+-- 
+-- /O(n)/ plus the cost of evaluating @p@. Laws:
+-- 
+-- > forall p xs . takeWhile p xs = fst (span p xs)
 takeWhile :: (a -> Bool) -> [a] -> [a]
 takeWhile p xs = fst $ span p xs
 
+-- | @'dropWhile' p xs@ returns the suffix remaining after
+-- @'takeWhile' p xs@. Some examples:
+-- 
+-- > dropWhile (< 3) [1,2,3,4,5,1,2,3] == [3,4,5,1,2,3]
+-- > dropWhile (< 9) [1,2,3] == []
+-- > dropWhile (< 0) [1,2,3] == [1,2,3]
+-- 
+-- /O(n)/ plus the cost of evaluating @p@. Laws:
+-- 
+-- > forall p xs . dropWhile p xs = snd (span p xs)
 dropWhile :: (a -> Bool) -> [a] -> [a]
 dropWhile p xs = snd $ span p xs
 
 -- Weird new list function, but OK. Definition taken from
 -- the standard library and cleaned up a bit.
+
+-- | The 'dropWhileEnd' function drops the largest suffix of a list
+-- in which the given predicate holds for all elements.  Some examples:
+--
+-- > dropWhileEnd isSpace "foo\n" == "foo"
+-- > dropWhileEnd isSpace "foo bar" == "foo bar"
+-- > dropWhileEnd isSpace ("foo\n" ++ undefined) == "foo" ++ undefined
+-- 
+-- /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- 
+-- > forall p x xs | not (p x) . 
+-- >   dropWhileEnd p (xs ++ [x]) == xs ++ [x]
+-- > forall p x xs | p x . 
+-- >   dropWhileEnd p (xs ++ [x]) == dropWhileEnd p xs
 dropWhileEnd :: (a -> Bool) -> [a] -> [a]
 dropWhileEnd p =
   foldr f []
