@@ -902,21 +902,16 @@ unfold f (l, r) =
 --
 -- /O(n)/ plus the cost of evaluating @f@, where /n/ is the
 -- length of the produced list.
-unfoldr :: (b -> Maybe (a, b)) -> b -> [a]
+unfoldr :: (a -> Maybe (b, a)) -> a -> [b]
 unfoldr f a =
-  snd $ h (a, [])
+  snd $ unfold g (a, [])
   where
     g (l, r) =
       case f l of
-        Nothing -> Nothing
-        Just (x, l') -> Just (x, (l', r))
-    h (l0, rs0) =
-      unfold g' (l0, rs0)
-      where
-        g' (l, rs) =
-          case g (l, rs) of
-            Just (r, (l', rs')) -> (l', Just (r : rs'))
-            Nothing -> (l, Nothing)
+        Nothing -> 
+          (l, Nothing)
+        Just (x, l') ->
+          (l', Just (x : r))
 
 -- This type is a generalization of the one in Data.List.
 take :: Integral b => b -> [a] -> [a]
