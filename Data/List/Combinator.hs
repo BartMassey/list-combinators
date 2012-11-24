@@ -1025,7 +1025,10 @@ splitAt n0 xs =
 -- 
 -- /O(n)/ plus the cost of evaluating @p@. Laws:
 -- 
--- > forall p xs . takeWhile p xs = fst (span p xs)
+-- > forall p x xs | not (p x) . 
+-- >   takeWhile p (x : xs) == []
+-- > forall p x xs | p x . 
+-- >   takeWhile p (x : xs) == x : takeWhile p xs
 takeWhile :: (a -> Bool) -> [a] -> [a]
 takeWhile p xs = fst $ span p xs
 
@@ -1038,7 +1041,10 @@ takeWhile p xs = fst $ span p xs
 -- 
 -- /O(n)/ plus the cost of evaluating @p@. Laws:
 -- 
--- > forall p xs . dropWhile p xs = snd (span p xs)
+-- > forall p x xs | not (p x) . 
+-- >   dropWhile p (x : xs) == x : xs
+-- > forall p x xs | p x . 
+-- >   dropWhile p (x : xs) == dropWhile p xs
 dropWhile :: (a -> Bool) -> [a] -> [a]
 dropWhile p xs = snd $ span p xs
 
@@ -1066,6 +1072,21 @@ dropWhileEnd p =
       | p x && null a = [] 
       | otherwise = x : a
 
+-- | 'span', applied to a predicate @p@ and a list @xs@,
+-- returns a tuple where the first element is the longest prefix
+-- of @xs@ whose elements satisfy @p@ and
+-- the second element is the remainder of the list.  Some
+-- examples:
+-- 
+-- > span (< 3) [1,2,3,4,1,2,3,4] == ([1,2],[3,4,1,2,3,4])
+-- > span (< 9) [1,2,3] == ([1,2,3],[])
+-- > span (< 0) [1,2,3] == ([],[1,2,3])
+-- 
+-- @'span' p xs@ is equivalent to @('takeWhile' p xs,
+-- 'dropWhile' p xs)@. /O(n)/ plus the cost of evaluating
+-- @p@. Laws:
+-- 
+-- > forall p xs . span p xs == (takeWhile p xs, dropWhile p xs)
 span :: (a -> Bool) -> [a] -> ([a], [a])
 span p xs =
   snd $ fold f (True, ([], [])) xs
@@ -1074,6 +1095,20 @@ span p xs =
       | b && p x = (True, (x : l, r))
       | otherwise = (False, ([], x : r))
 
+-- | 'break', applied to a predicate @p@ and a list @xs@,
+-- returns a tuple where the first element is the longest prefix
+-- of @xs@ whose elements that /do not
+-- satisfy/ @p@ and the second element is the remainder of the
+-- list. Some examples:
+-- 
+-- > break (> 3) [1,2,3,4,1,2,3,4] == ([1,2,3],[4,1,2,3,4])
+-- > break (< 9) [1,2,3] == ([],[1,2,3])
+-- > break (> 9) [1,2,3] == ([1,2,3],[])
+-- 
+-- 'break' @p@ is equivalent to @'span' ('not' . p)@. 
+-- /O(n)/. Laws:
+-- 
+-- > forall p xs . break p xs == span (not p) xs
 break :: (a -> Bool) -> [a] -> ([a], [a])
 break p = span (not . p)
 
