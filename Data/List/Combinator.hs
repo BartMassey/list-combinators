@@ -174,6 +174,7 @@ module Data.List.Combinator (
   unionBy',
   intersectBy,
   intersectBy',
+  groupBy,
   mergeBy,
   sortBy,
   insertBy,
@@ -1260,13 +1261,50 @@ stripSuffixBy eq ps xs0 =
         f (_, []) _ = (False, [])
         f (ok, (y : ys)) x = (ok && eq x y, ys)
 
+-- | The 'group' function takes a list and returns a
+-- partition of that list such that elements @x1@ and @x2@
+-- share a partition if and only if they are adjacent and
+-- equal. Thus, each sublist in the resulting list of lists
+-- contains only equal elements, and the concatenation of
+-- the result is the original list.  For example:
+-- 
+-- > group "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
+-- 
+-- This function is a special case of 'groupBy' using the '(==)' 
+-- predicate. /O(n)/. Laws:
+-- 
+-- > forall xs . group xs == groupBy (==) xs
 group :: Eq a => [a] -> [[a]]
-group xs0 =
+group xs0 = groupBy (==) xs0
+
+-- | The 'groupBy' function takes a list and returns a
+-- partition of that list such that elements @x1@ and @x2@
+-- share a partition if and only if they are adjacent and
+-- they are equal according to the given equality
+-- test. Thus, each sublist in the resulting list of lists
+-- contains only equal elements, and the concatenation of
+-- the result is the original list.  For example:
+-- 
+-- > groupBy (==) "Mississippi" = ["M","i","ss","i","ss","i","pp","i"]
+-- 
+-- /O(n)/. Laws:
+-- 
+-- > forall p . groupBy p [] == []
+-- > forall p x xs xss | groupBy p xs == [] : xss .
+-- >   groupBy p (x : xs) == [x] : xss
+-- > forall p x xs x1 xs1 xss | 
+-- >  p x x1 && groupBy p xs == ((x1 : xs1) : xss) .
+-- >   groupBy p (x : xs) == ((x : x1 : xs1) : xss)
+-- > forall p x xs x1 xs1 xss | 
+-- >  not (p x x1) && groupBy p xs == ((x1 : xs1) : xss) .
+-- >   groupBy p (x : xs) == [x] : (x1 : xs1) : xss
+groupBy :: (a -> a -> Bool) -> [a] -> [[a]]
+groupBy p xs0 =
   unfoldr f xs0
   where
     f [] = Nothing
     f (x : xs) =
-      let (g, xs') = span (== x) xs in
+      let (g, xs') = span (p x) xs in
       Just (x : g, xs')
 
 -- Adapted from teh standard library.
