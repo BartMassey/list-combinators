@@ -1838,11 +1838,62 @@ unlines ls = intercalate "\n" ls ++ "\n"
 unwords :: [String] -> String
 unwords ws = intercalate " " ws
 
+-- | The 'nub' function removes duplicate elements from a
+-- list.  In particular, it keeps only the first occurrence
+-- of each element.  (The name 'nub' means \"essence\".)  It
+-- is a special case of 'nubBy' with @(==)@ as the equality
+-- test. /O(n^2)/. Laws:
+-- 
+-- > forall xs . nub xs == nubBy (==) xs
 nub :: Eq a => [a] -> [a]
 nub = nubBy (==)
 
+-- | The 'nub' function removes duplicate elements from a
+-- list.  In particular, it keeps only the first occurrence
+-- of each element, as judged by the given equality predicate.  
+-- (The name 'nub' means \"essence\".)
+-- /O(n^2)/ plus the cost of evaluating the predicate. Laws:
+-- 
+-- > forall p . nubBy p [] == []
+-- > forall p x xs . nubBy p (x : xs) == x : filter (not . p) (nubBy p xs)
+nubBy :: (a -> a -> Bool) -> [a] -> [a]
+nubBy p xs =
+  snd $ fold g ([], []) xs
+  where
+    g x (l, rs)
+      | elemBy p x l = (l, rs)
+      | otherwise = (x : l, x : rs)
+
+-- | The 'delete' function deletes the first occurrence, if
+-- any, of a given element from a given list. It is a
+-- special case of 'deleteBy' with @(==)@ as the equality
+-- test. /O(n)/. Laws:
+-- 
+-- > forall x xs . delete x xs == deleteBy (==) x xs
 delete :: Eq a => a -> [a] -> [a]
 delete = deleteBy (==)
+
+-- | The 'deleteBy' function deletes the first occurrence, if
+-- any, of a given element from a given list, using
+-- the supplied equality test. Some examples:
+-- 
+-- > delete 'a' "banana" == "bnana"
+-- > delete 'a' "frog" == "frog"
+-- 
+-- /O(n)/. Laws:
+-- 
+-- > forall p x . deleteBy p x [] == []
+-- > forall p x xs | p x == True . 
+-- >   deleteBy p x xs == xs
+-- > forall p x xs | p x == False . 
+-- >   deleteBy p x xs == x : deleteBy p xs
+deleteBy :: (a -> a -> Bool) -> a -> [a] -> [a]
+deleteBy p x0 xs0 =
+  let ~(xs, ys) = break (p x0) xs0 in
+  xs ++ safeTail ys
+  where
+    safeTail [] = []
+    safeTail (_ : ys) = ys
 
 (\\) :: Eq a => [a] -> [a] -> [a]
 (\\) = deleteFirstsBy (==)
@@ -1873,22 +1924,6 @@ insert = insertBy compare
 
 insert' :: Ord a => a -> [a] -> [a]
 insert' = insertBy' compare
-
-nubBy :: (a -> a -> Bool) -> [a] -> [a]
-nubBy f =
-  snd . fold g ([], [])
-  where
-    g x (l, rs)
-      | elemBy f x l = (l, rs)
-      | otherwise = (x : l, x : rs)
-
-deleteBy :: (a -> a -> Bool) -> a -> [a] -> [a]
-deleteBy p t es =
-  snd $ fold f (True, []) es
-  where
-    f x (l, r)
-      | l && p x t = (False, r)
-      | otherwise = (l, x : r)
 
 deleteFirstsBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 deleteFirstsBy f xs ys =
