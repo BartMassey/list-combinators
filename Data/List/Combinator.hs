@@ -750,28 +750,64 @@ product' :: Num a => [a] -> a
 product' = foldl (*) 1
 
 -- | The 'maximum' function returns a maximum value from a
--- non-empty list of 'Ord' elements by way of the 'max'
--- function. If there are multiple maxima, the choice of
--- which to return is unspecified. See also
--- 'maximumBy'. Strict. /O(n)/. Laws:
+-- non-empty list of 'Ord' elements. If there are multiple
+-- maxima, the choice of which to return is
+-- unspecified. This is a special case of 'maximumBy' with
+-- comparison function 'compare'. Strict. /O(n)/. Laws:
 -- 
--- > forall x . maximum [x] == x
--- > forall x xs | not (null xs) .
--- >   maximum (x : xs) == x `max` maximum xs
+-- > forall xs | not (null xs) . maximum xs == maximumBy compare xs
 maximum :: Ord a => [a] -> a
-maximum = foldl1' max
+maximum xs = maximumBy compare xs
+
+-- | The 'maximum' function returns a maximum value from a
+-- non-empty list of elements using a provided comparison
+-- function. If there are multiple maxima, the choice of
+-- which to return is unspecified. Strict. /O(n)/. Laws:
+-- 
+-- > forall c x . maximumBy c [x] == x
+-- > forall c x xs | 
+-- >  not (null xs) && c x (maximumBy c xs) /= LT .
+-- >   maximumBy c (x : xs) == x
+-- > forall c x xs | 
+-- >  not (null xs) && c x (maximumBy c xs) == LT .
+-- >   maximumBy c (x : xs) == maximumBy c xs
+maximumBy :: (a -> a -> Ordering) -> [a] -> a
+maximumBy c xs =
+  foldl1' f xs
+  where
+    x1 `f` x2
+      | x1 `c` x2 == LT = x2
+      | otherwise = x1
 
 -- | The 'minimum' function returns a minimum value from a
--- non-empty list of 'Ord' elements by way of the 'min'
--- function. If there are multiple minima, the choice of
--- which to return is unspecified. See also
--- 'minimumBy'. Strict. /O(n)/. Laws:
+-- non-empty list of 'Ord' elements.  If there are multiple
+-- minima, the choice of which to return is
+-- unspecified. This is a special case of 'minimumBy' with
+-- comparison function 'compare'. Strict. /O(n)/. Laws:
 -- 
--- > forall x . minimum [x] == x
--- > forall x xs | not (null xs) .
--- >   minimum (x : xs) == x `min` maximum xs
+-- > forall xs | not (null xs). minimum xs == minimumBy compare xs
 minimum :: Ord a => [a] -> a
-minimum = foldl1' min
+minimum xs = minimumBy compare xs
+
+-- | The 'minimum' function returns a minimum value from a
+-- non-empty list of 'Ord' elements
+-- function. If there are multiple minima, the choice of
+-- which to return is unspecified. Strict. /O(n)/. Laws:
+-- 
+-- > forall c x . minimumBy c [x] == x
+-- > forall c x xs | 
+-- >  not (null xs) && c x (minimumBy c xs) /= GT .
+-- >   minimumBy c (x : xs) == x
+-- > forall c x xs | 
+-- >  not (null xs) && c x (minimumBy c xs) == GT .
+-- >   minimumBy c (x : xs) == minimumBy c xs
+minimumBy :: (a -> a -> Ordering) -> [a] -> a
+minimumBy c xs =
+  foldl1' f xs
+  where
+    x1 `f` x2
+      | x1 `c` x2 == GT = x2
+      | otherwise = x1
 
 -- | The 'scanl' function is similar to 'foldl', 
 -- in that 'scanl' passes an accumulator from left to right.
@@ -2192,19 +2228,3 @@ sortBy c xs0 =
               Just (xs, [])
             g (xs1 : xs2 : xs) =
               Just (mergeBy c xs1 xs2, xs)
-
-maximumBy :: (a -> a -> Ordering) -> [a] -> a
-maximumBy c xs =
-  foldl1' f xs
-  where
-    x1 `f` x2
-      | x1 `c` x2 == LT = x2
-      | otherwise = x1
-
-minimumBy :: (a -> a -> Ordering) -> [a] -> a
-minimumBy c xs =
-  foldl1' f xs
-  where
-    x1 `f` x2
-      | x1 `c` x2 == GT = x2
-      | otherwise = x1
