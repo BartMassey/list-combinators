@@ -999,6 +999,13 @@ unfoldl' f a0 =
           ((a' `seq` a', x : xs), Just ())
 
 
+-- XXX Strictness bug:
+-- 
+-- >>> take 1 $ insertBy' compare 2 [1, undefined]
+-- [1*** Exception: Prelude.undefined
+-- 
+-- After messing with it for an hour, I have no clue why.
+
 -- | @'take' n@, applied to a list @xs@, returns the prefix of @xs@
 -- of length @n@, or @xs@ itself if @n > 'length' xs@.
 -- Some examples:
@@ -1062,11 +1069,8 @@ drop n = snd . splitAt n
 -- > forall n xs . splitAt n xs = (take n xs, drop n xs)
 splitAt :: Integral b => b -> [a] -> ([a], [a])
 splitAt n0 xs =
-  snd $ fold f (n0, ([], [])) xs
-  where
-    f x ~(n, ~(ts, ds))
-      | n <= 0 = (n - 1, ([], x : ds))
-      | otherwise = (n - 1, (x : ts, ds))
+  let ~(l, r) = span ((< n0) . fst) $ zip [0..] xs in
+  (map snd l, map snd r)
 
 -- | Returns a list of all possible splits of its list
 -- argument as produced by 'splitAt' in order of
@@ -1204,7 +1208,7 @@ span :: (a -> Bool) -> [a] -> ([a], [a])
 span p xs =
   snd $ fold f (True, ([], [])) xs
   where
-    f x (b, ~(l, r))
+    f x ~(b, ~(l, r))
       | b && p x = (True, (x : l, r))
       | otherwise = (False, ([], x : r))
 
