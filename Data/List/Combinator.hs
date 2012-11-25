@@ -2041,8 +2041,38 @@ intersectBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
 intersectBy' p xs ys =
   intersectBy p (nubBy p xs) ys
 
+-- | Given two (presumptively) ordered lists, return the
+-- ordered merge of the lists, with ties broken to the
+-- left. This is a special case of 'mergeBy' that uses
+-- 'compare' as the comparison function.  
+-- [New.] /O(m + n)/. Laws:
+-- 
+-- forall xs ys . merge xs ys == mergeBy compare xs ys
 merge :: Ord a => [a] -> [a] -> [a]
 merge = mergeBy compare
+
+-- | Given two (presumptively) ordered lists and a
+-- comparison function, return the ordered merge of the
+-- lists, with ties broken to the left.  
+-- [New.] /O(m + n)/ plus the cost of evaluating the comparison
+-- function. Laws:
+-- 
+-- > forall p xs . mergeBy p [] xs == xs
+-- > forall p xs . mergeBy p xs [] == xs
+-- > forall p x xs y ys | p x y /= GT . 
+-- >   mergeBy p (x : xs) (y : ys) == x : mergeBy p xs (y : ys)
+-- > forall p x xs y ys | p x y == GT . 
+-- >   mergeBy p (x : xs) (y : ys) == y : mergeBy p (x : xs) ys
+mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
+mergeBy c xs1 xs2 =
+  unfoldr f (xs1, xs2)
+  where
+    f ([], []) = Nothing
+    f ([], x2 : x2s) = Just (x2, ([], x2s))
+    f (x1 : x1s, []) = Just (x1, (x1s, []))
+    f (x1 : x1s, x2 : x2s)
+      | x1 `c` x2 == GT = Just (x2, (x1 : x1s, x2s))
+      | otherwise = Just (x1, (x1s, x2 : x2s))
 
 sort :: Ord a => [a] -> [a]
 sort = sortBy compare
@@ -2117,7 +2147,7 @@ insert' = insertBy' compare
 -- needs to traverse the whole list to check for further
 -- insertion points.
 -- 
--- /O(n)/. Laws:
+-- [New.] /O(n)/. Laws:
 -- 
 -- > forall c x0 . insertBy' c x0 [] == [x0]
 -- > forall c x0 x xs | x <= x0 . 
@@ -2128,18 +2158,6 @@ insertBy' :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy' c x0 xs0 =
   let ~(xs1, xs2) = spanEnd (\x -> x `c` x0 /= LT) xs0 in
   xs1 ++ [x0] ++ xs2
-
--- This should be in the standard library anyhow.
-mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
-mergeBy c xs1 xs2 =
-  unfoldr f (xs1, xs2)
-  where
-    f ([], []) = Nothing
-    f ([], x2 : x2s) = Just (x2, ([], x2s))
-    f (x1 : x1s, []) = Just (x1, (x1s, []))
-    f (x1 : x1s, x2 : x2s)
-      | x1 `c` x2 == GT = Just (x2, (x1 : x1s, x2s))
-      | otherwise = Just (x1, (x1s, x2 : x2s))
 
 -- This seems to need the general power of unfold
 -- to get its work done? It's a O(n log n) merge
