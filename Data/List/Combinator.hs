@@ -1895,23 +1895,147 @@ deleteBy p x0 xs0 =
     safeTail [] = []
     safeTail (_ : ys) = ys
 
+-- | The '\\' operator is non-associative list difference.
+-- The result of @xs '\\' ys@ is @xs@ with the first
+-- occurence (if any) of each element of @ys@ removed. Thus
+-- 
+-- > (xs ++ ys) \\ xs == ys
+-- 
+-- The '\\' operator is a special case of the
+-- 'deleteFirstsBy' function with equality operator
+-- @(==)@. /O(m n)/. Laws:
+-- 
+-- > forall xs ys . xs \\ ys == deleteFirstsBy (==) xs ys
 (\\) :: Eq a => [a] -> [a] -> [a]
-(\\) = deleteFirstsBy (==)
+xs \\ ys = deleteFirstsBy (==) xs ys
 
+-- | The 'deleteFirstsBy' function is non-associative list
+-- difference under a user-provided equality predicate.  The
+-- result of @'deleteFirstsBy' xs ys@ is @xs@ with the first
+-- occurence (if any, as measured by the supplied equality
+-- predicate) of each element of @ys@ removed. Thus, for any
+-- well-formed equality predicate @p@
+-- 
+-- > deleteFirstBy p (xs ++ ys) xs == ys
+-- 
+-- /O(m n)/ plus the cost of evaluating the equality predicate. Laws:
+-- 
+-- > forall p xs . deleteFirstsBy p xs [] == xs
+-- > forall p xs (y : ys) . deleteFirstsBy p (deleteBy p y xs) ys
+deleteFirstsBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+deleteFirstsBy p xs ys =
+  foldl (flip (deleteBy p)) xs ys
+
+-- | The '\\*' operator is like the `\\` operator, except
+-- that both arguments are made canonical by elimination of
+-- duplicate elements before differencing. /O(m n)/. Laws:
+-- 
+-- > forall xs ys . xs \\* ys == deleteFirstsBy' (==) xs ys
 (\\*) :: Eq a => [a] -> [a] -> [a]
-(\\*) = deleteFirstsBy' (==)
+xs \\* ys = deleteFirstsBy' (==) xs ys
 
+-- | This variant of 'deleteFirstsBy' makes the result
+-- canonical on all inputs. /O(m n) + O(m^2) + O(n^2)/ plus
+-- the cost of evaluating the equality predicate. Laws:
+-- 
+-- > forall p xs ys . 
+-- >   deleteFirstsBy' p xs ys == deleteFirstsBy p (nub xs) (nub ys)
+deleteFirstsBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+deleteFirstsBy' p xs ys =
+  deleteFirstsBy p (nubBy p ys) (nubBy p xs)
+
+-- | The 'union' function returns the \"list union\" of
+-- two lists. It is a special case of 'unionBy' with @(==)@
+-- as the equality predicate. /O(m n)/. Laws:
+-- 
+-- > forall xs ys . union xs ys == unionBy (==) xs ys
 union :: Eq a => [a] -> [a] -> [a]
 union = unionBy (==)
 
+-- | The 'unionBy' function returns the \"list union\" of two lists,
+-- under the given equality predicate.
+-- Some examples:
+-- 
+-- > unionBy (==) "dog" "cow" == "dogcw"
+-- > unionBy (==) "moose" "cow" == "moosecw"
+-- > unionBy (==) "moose" "woodpecker" == "moosewdpckr"
+-- 
+-- /O(m n) + O(n^2)/ plus the cost of evaluating the 
+-- equality predicate. Laws:
+-- 
+-- > forall p xs ys . 
+-- >   unionBy p xs ys == xs ++ deleteFirstsBy p (nubBy p ys) xs
+unionBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+unionBy p xs ys =
+  xs ++ deleteFirstsBy p (nubBy p ys) xs
+
+-- | The 'union'' function returns the \"list union\" of
+-- two lists. It is a special case of 'unionBy'' with @(==)@
+-- as the equality predicate. Laws:
+-- 
+-- > forall xs ys . union' xs ys == unionBy' (==) xs ys
 union' :: Eq a => [a] -> [a] -> [a]
 union' = unionBy' (==)
 
+-- | The 'unionBy'' function returns the \"list union\" of
+-- two lists, under the given equality predicate, but
+-- \"canonicalized\" such that each element appears only
+-- once.  /O(m n) + O(m^2) + O(n^2)/ plus the cost of
+-- evaluating the equality predicate. Laws:
+-- 
+-- > forall p xs ys . 
+-- >   unionBy' p xs ys == unionBy p (nubBy p xs) (nubBy p ys)
+unionBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+unionBy' p xs ys =
+  unionBy p (nubBy p xs) (nubBy p ys)
+
+-- | The 'intersect' function returns the \"list
+-- intersection\" of two lists. It is a special case of
+-- 'intersectBy' with @(==)@ as the equality predicate. 
+-- /O(m n)/. Laws:
+-- 
+-- > forall xs ys . intersect xs ys == intersectBy (==) xs ys
 intersect :: Eq a => [a] -> [a] -> [a]
 intersect = intersectBy (==)
 
+-- | The 'intersectBy' function returns the \"list
+-- intersection\" of two lists, under the given equality
+-- predicate. If the first list contains duplicates, so
+-- will the result. Some examples:
+-- 
+-- > intersectBy (==) [1, 2, 3, 4] [2, 4, 6, 8] == [2, 4]
+-- > intersectBy (==) [1, 2, 2, 3, 4] [6, 4, 4, 2] == [2, 2, 4]
+-- 
+-- /O(m n)/ plus the cost of evaluating the 
+-- equality predicate. Laws:
+-- 
+-- > forall p xs ys . 
+-- >   intersectBy p xs ys == filter (\x -> elemBy f x ys) xs
+intersectBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+intersectBy p xs ys =
+  filter (\x -> elemBy p x ys) xs
+
+-- | The 'intersect'' function returns the \"list
+-- intersection\" of two lists, but with all duplicates
+-- removed first. It is a special case of 'intersectBy''
+-- with @(==)@ as the equality predicate.  
+-- /O(m n) + O(m^2) + O(n^2)/. Laws:
+-- 
+-- > forall xs ys . intersect xs ys == intersectBy (==) xs ys
 intersect' :: Eq a => [a] -> [a] -> [a]
 intersect' = intersectBy' (==)
+
+-- | The 'intersectBy'' function returns the \"list
+-- intersection\" of two lists, under the given equality
+-- predicate, but \"canonicalized\" such that each element
+-- appears only once.  /O(m n) + O(m^2) + O(n^2)/ plus the
+-- cost of evaluating the equality predicate. Laws:
+-- 
+-- > forall p xs ys . 
+-- >   intersectBy' p xs ys == intersectBy p (nubBy p xs) ys
+intersectBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
+intersectBy' p xs ys =
+  intersectBy p (nubBy p xs) ys
 
 merge :: Ord a => [a] -> [a] -> [a]
 merge = mergeBy compare
@@ -1924,38 +2048,6 @@ insert = insertBy compare
 
 insert' :: Ord a => a -> [a] -> [a]
 insert' = insertBy' compare
-
-deleteFirstsBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-deleteFirstsBy f xs ys =
-  foldl (flip (deleteBy f)) xs ys
-
--- This definition of deleteFirstsBy makes the result canonical
--- on all inputs.
-deleteFirstsBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-deleteFirstsBy' f xs ys =
-  filter (\x -> notElemBy f x (nubBy f ys)) (nubBy f xs)
-
-unionBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-unionBy f xs ys =
-  xs ++ deleteFirstsBy f (nubBy f ys) xs
-
--- The standard definition of unionBy is maximally lazy:
--- this one makes the result canonical on all inputs.
-unionBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-unionBy' f xs ys =
-  let xs' = nubBy f xs in
-  xs' ++ deleteFirstsBy f (nubBy f ys) xs'
-
-intersectBy :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-intersectBy f xs ys =
-  filter (\x -> elemBy f x ys) xs
-
--- This definition of intersectBy makes the result canonical
--- on all inputs.
-intersectBy' :: (a -> a -> Bool) -> [a] -> [a] -> [a]
-intersectBy' f xs ys =
-  filter (\x -> elemBy f x (nubBy f ys)) (nubBy f xs)
-
 
 -- This should be in the standard library anyhow.
 mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
