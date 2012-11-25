@@ -515,7 +515,7 @@ permutations xs =
 -- | @'insertions' t xs@ returns a list of the lists
 -- obtained by inserting @t@ at every position in @xs@ in
 -- sequence, in order from left to
--- right. [New.] /O(n^2)/. Laws:
+-- right. New. /O(n^2)/. Laws:
 -- 
 -- > forall t . insertions t [] == [[t]]
 -- > forall t x xs . 
@@ -1005,7 +1005,7 @@ unfoldr f a0 =
         Just (x, a') ->
           (a', Just (x : xs))
 
--- | An unfoldl is provided for completeness. [New.]
+-- | An unfoldl is provided for completeness. New.
 -- Spine-strict. /O(n)/ plus the cost of evaluating the
 -- unfolding function. Laws:
 -- 
@@ -1115,7 +1115,7 @@ splitAt n0 xs =
 
 -- | Returns a list of all possible splits of its list
 -- argument as produced by 'splitAt' in order of
--- increasing @n@. [New.] /O(n)/. Laws:
+-- increasing @n@. New. /O(n)/. Laws:
 -- 
 -- > forall n xs | length xs == n .
 -- >   splits xs == zipWith splitAt [0..n] (repeat xs)
@@ -1171,7 +1171,7 @@ dropWhile p xs = snd $ span p xs
 -- 
 -- @'spanEnd' p xs@ is equivalent to 
 -- @('takeWhileEnd' p xs, 'dropWhileEnd' p xs)@.
--- [New.] /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- New. /O(n)/ plus the cost of evaluating the predicate. Laws:
 -- 
 -- forall p xs . spanEnd p xs == (takeWhileEnd p xs, dropWhileEnd p xs)
 spanEnd :: (a -> Bool) -> [a] -> ([a], [a])
@@ -1193,7 +1193,7 @@ spanEnd p xs =
 -- 
 -- @'breakEnd' p xs@ is equivalent to 
 -- @'spanEnd' (not p) xs@.
--- [New.] /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- New. /O(n)/ plus the cost of evaluating the predicate. Laws:
 -- 
 -- forall p xs . breakEnd p xs == spanEnd (not p) xs
 breakEnd :: (a -> Bool) -> [a] -> ([a], [a])
@@ -1205,7 +1205,7 @@ breakEnd p xs = spanEnd (not . p) xs
 -- > takeWhileEnd isSpace "foo\n" == "\n"
 -- > takeWhileEnd isSpace "foo bar" == ""
 -- 
--- [New.] /O(n)/ plus the cost of evaluating the predicate. Laws:
+-- New. /O(n)/ plus the cost of evaluating the predicate. Laws:
 -- 
 -- > forall p x xs | not (p x) . 
 -- >   takeWhileEnd p (xs ++ [x]) == []
@@ -1328,7 +1328,7 @@ stripSuffix = stripSuffixBy (==)
 -- if the suffix matches, and 'Nothing' otherwise. A user-supplied
 -- predicate is used for testing element equality.
 -- 
--- [New.] /O(m n)/ where /m/ is the length of the prefix and /n/ is the
+-- New. /O(m n)/ where /m/ is the length of the prefix and /n/ is the
 -- length of the list..  Laws:
 -- 
 -- > forall eq xs . stripSuffixBy eq [] xs == Just xs
@@ -1442,7 +1442,7 @@ isPrefixOf xs ys = isPrefixOfBy (==) xs ys
 -- | The 'isPrefixOfBy' function takes two lists and returns
 -- 'True' iff the first list is a prefix of the second
 -- according to the given equality predicate.
--- [New.] /O(n)/. Laws:
+-- New. /O(n)/. Laws:
 -- 
 -- > forall p ps xs ys | stripPrefixBy p ps xs == Just ys . 
 -- >   isPrefixBy p ps xs == True
@@ -1466,7 +1466,7 @@ isSuffixOf xs ys = isSuffixOfBy (==) xs ys
 -- | The 'isSuffixOfBy' function takes two lists and returns
 -- 'True' iff the first list is a suffix of the second
 -- according to the given equality predicate.
--- [New.] /O(n)/ plus the cost of
+-- New. /O(n)/ plus the cost of
 -- evaluating the predicate. Laws:
 -- 
 -- > forall p ss xs ys | stripSuffixBy p ss xs == Just ys . 
@@ -1504,7 +1504,7 @@ isInfixOf xs ys = isInfixOfBy (==) xs ys
 -- >isInfixOfBy (==) "Haskell" "I really like Haskell." == True
 -- >isInfixOfBy (==) "Ial" "I really like Haskell." == False
 -- 
--- [New.] /O(m n)/ where /m/ is the length of the prefix and /n/ the
+-- New. /O(m n)/ where /m/ is the length of the prefix and /n/ the
 -- length of the list searched, plus the cost of
 -- evaluating the predicate. Laws:
 -- 
@@ -1529,7 +1529,7 @@ elem = elemBy (==)
 -- | 'elemBy' is the list membership predicate. Given an
 -- element and a list, return 'True' if the element is found
 -- in the list, according to the given equality
--- function. Return 'False' otherwise. [New.] /O(n)/ plus
+-- function. Return 'False' otherwise. New. /O(n)/ plus
 -- the cost of evaluating the predicate. Laws:
 -- 
 -- > forall p x xs . elemBy p x xs == any (p x) xs
@@ -1540,7 +1540,7 @@ elemBy eq x0 xs =  any (eq x0) xs
 
 -- | 'elem' is the list non-membership predicate. Given an
 -- element and a list, return 'False' if the element is found
--- in the list. Return 'True' otherwise. [New.] /O(n)/. Laws:
+-- in the list. Return 'True' otherwise. New. /O(n)/. Laws:
 -- 
 -- > forall x xs . notElem x xs == not (elem x xs)
 notElem :: Eq a => a -> [a] -> Bool
@@ -1549,7 +1549,7 @@ notElem x0 = not . elem x0
 -- | 'notElemBy' is the list non-membership predicate. Given
 -- an element and a list, return 'False' if the element is
 -- found in the list, according to the given equality
--- function. Return 'True' otherwise. [New.] /O(n)/ plus the
+-- function. Return 'True' otherwise. New. /O(n)/ plus the
 -- cost of evaluating the predicate. Laws:
 -- 
 -- > forall p x xs . notElemBy p x xs == not (elemBy p x xs)
@@ -1568,7 +1568,7 @@ lookup x0 xs =
 
 -- | @'lookupBy' p key assocs@ looks up @key@ in
 -- \"association list\" @assocs@ using the specified
--- equality predicate @p@. [New.] /O(n)/ plus the cost of
+-- equality predicate @p@. New. /O(n)/ plus the cost of
 -- evaluating the predicate. Laws:
 -- 
 -- > forall p k0 . lookupBy p k0 [] == Nothing
@@ -1623,8 +1623,20 @@ partition p xs =
       | p x = (x : l, r)
       | otherwise = (l, x : r)
 
+-- | List index (subscript) operator, starting from 0. /O(n)/ where
+-- /n/ is the right-hand argument. Laws:
+-- 
+-- > forall x xs . (x : xs) !! 0 == x
+-- > forall n x xs | 
+-- >  n > 0 && n < length (x : xs) .
+-- >   (x : xs) !! n == xs !! (n - 1)
 (!!) :: Integral b => [a] -> b -> a
-xs !! n = let Just x = lookup n (zip [0..] xs) in x
+_ !! n | n < 0 =
+  error "!!: negative index"
+xs !! n = 
+  case lookup n (zip [0..] xs) of
+    Just x -> x
+    Nothing -> error "!!: index too large"
 
 -- These elem and find functions mostly come from the standard library.
 
@@ -1641,7 +1653,7 @@ elemIndex x xs = elemIndexBy (==) x xs
 -- first element in the given list which is equal (by the
 -- given predicate) to the query element, or 'Nothing' if
 -- there is no such element. This is a special case of
--- 'findIndex'. [New.] /O(n)/ plus the cost of evaluating the
+-- 'findIndex'. New. /O(n)/ plus the cost of evaluating the
 -- predicate. Laws:
 -- 
 -- forall p x xs . elemIndexBy p x xs == findIndex (p x) xs
@@ -1659,7 +1671,7 @@ elemIndices x xs = elemIndicesBy (==) x xs
 -- | The 'elemIndicesBy' function extends 'findIndices', by
 -- returning the indices of all elements equal (by the given
 -- equality function) to the query element, in ascending
--- order. [New.] /O(n)/ plus the cost of evaluating the
+-- order. New. /O(n)/ plus the cost of evaluating the
 -- predicate. Laws:
 -- 
 -- > forall p x xs . elemIndicesBy p x xs == findIndicesBy (p x) xs
@@ -2087,7 +2099,7 @@ intersectBy' p xs ys =
 -- ordered merge of the lists, with ties broken to the
 -- left. This is a special case of 'mergeBy' that uses
 -- 'compare' as the comparison function.  
--- [New.] /O(m + n)/. Laws:
+-- New. /O(m + n)/. Laws:
 -- 
 -- forall xs ys . merge xs ys == mergeBy compare xs ys
 merge :: Ord a => [a] -> [a] -> [a]
@@ -2096,7 +2108,7 @@ merge = mergeBy compare
 -- | Given two (presumptively) ordered lists and a
 -- comparison function, return the ordered merge of the
 -- lists, with ties broken to the left.  
--- [New.] /O(m + n)/ plus the cost of evaluating the comparison
+-- New. /O(m + n)/ plus the cost of evaluating the comparison
 -- function. Laws:
 -- 
 -- > forall p xs . mergeBy p [] xs == xs
@@ -2116,8 +2128,44 @@ mergeBy c xs1 xs2 =
       | x1 `c` x2 == GT = Just (x2, (x1 : x1s, x2s))
       | otherwise = Just (x1, (x1s, x2 : x2s))
 
+-- XXX Need to write laws for sorts.
+
+-- | The 'sort' function implements a stable sorting
+-- algorithm.  It is a special case of 'sortBy' with
+-- comparison function 'compare'. Strict. /O(n)/.
 sort :: Ord a => [a] -> [a]
 sort = sortBy compare
+
+-- This is an O(n log n) merge sort, not nearly as fast as
+-- the magic sort in the standard library. It unfolds
+-- nicely, though.
+
+-- | The 'sortBy' function implements a stable sorting
+-- algorithm, given a user-supplied comparator
+-- function. Strict. /O(n)/.
+sortBy :: (a -> a -> Ordering) -> [a] -> [a]
+sortBy c xs0 =
+  case fst $ unfold f (map (: []) xs0, undefined) of
+    [] -> []
+    [xs] -> xs
+    _ -> error "sort: internal error: incomplete merge"
+  where
+    f ([], _) = ([], Nothing)
+    f ([xs], _) = ([xs], Nothing)
+    f (xss, _) =
+      (sortStep, Just undefined)
+      where
+        -- Assume a list of sorted inputs. Merge adjacent
+        -- pairs of lists in the input to produce about half
+        -- as many sorted lists, each about twice as large.
+        sortStep =
+          unfoldr g xss
+          where
+            g [] = Nothing
+            g [xs] =
+              Just (xs, [])
+            g (xs1 : xs2 : xs) =
+              Just (mergeBy c xs1 xs2, xs)
 
 -- | Given a list of 'Ord' values, insert an element @x1@ at the first
 -- position such that the next element @x2@ is greater than or equal to @x1@.
@@ -2189,7 +2237,7 @@ insert' = insertBy' compare
 -- needs to traverse the whole list to check for further
 -- insertion points.
 -- 
--- [New.] /O(n)/. Laws:
+-- New. /O(n)/. Laws:
 -- 
 -- > forall c x0 . insertBy' c x0 [] == [x0]
 -- > forall c x0 x xs | x <= x0 . 
@@ -2200,31 +2248,3 @@ insertBy' :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy' c x0 xs0 =
   let ~(xs1, xs2) = spanEnd (\x -> x `c` x0 /= LT) xs0 in
   xs1 ++ [x0] ++ xs2
-
--- This seems to need the general power of unfold
--- to get its work done? It's a O(n log n) merge
--- sort, although probably not as fast as the one
--- in the standard library.
-sortBy :: (a -> a -> Ordering) -> [a] -> [a]
-sortBy c xs0 =
-  case fst $ unfold f (map (: []) xs0, undefined) of
-    [] -> []
-    [xs] -> xs
-    _ -> error "sort: internal error: incomplete merge"
-  where
-    f ([], _) = ([], Nothing)
-    f ([xs], _) = ([xs], Nothing)
-    f (xss, _) =
-      (sortStep, Just undefined)
-      where
-        -- Assume a list of sorted inputs. Merge adjacent
-        -- pairs of lists in the input to produce about half
-        -- as many sorted lists, each about twice as large.
-        sortStep =
-          unfoldr g xss
-          where
-            g [] = Nothing
-            g [xs] =
-              Just (xs, [])
-            g (xs1 : xs2 : xs) =
-              Just (mergeBy c xs1 xs2, xs)
