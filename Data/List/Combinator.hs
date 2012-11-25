@@ -2043,11 +2043,87 @@ merge = mergeBy compare
 sort :: Ord a => [a] -> [a]
 sort = sortBy compare
 
+-- | Given a list of 'Ord' values, insert an element @x1@ at the first
+-- position such that the next element @x2@ is greater than or equal to @x1@.
+-- This function is a special case of 'insertBy' with 'compare' as
+-- the comparison function. /O(n)/. Laws:
+-- 
+-- > forall x0 xs . insert x0 xs == insertBy compare x0 xs
 insert :: Ord a => a -> [a] -> [a]
 insert = insertBy compare
 
+-- | Given a list of 'Ord' values, insert an element @x1@ at the first
+-- position such that the next element @x2@ is greater than or equal to @x1@,
+-- using the supplied comparison function. Some examples:
+-- 
+-- > insertBy compare 2 [] == [2]
+-- > insertBy compare 2 [1] == [1, 2]
+-- > insertBy (comparing fst) (2, 0) [(1, 1), (2, 1), (3, 1)] ==
+-- >   [(1, 1), (2, 0), (2, 1), (3, 1)]
+-- > insertBy compare 2 [1, 3, 1, 3] == [1, 2, 3, 1, 3]
+-- > insertBy compare 2 [3..] == [2..]
+-- 
+-- This version of insertBy agrees with the code in the
+-- standard library, which inserts in the first possible
+-- location rather than the last. However, it fails to agree
+-- with the documentation for that library. (This is
+-- currently bug #7421 in the GHC Trac.)
+-- 
+-- /O(n)/ plus the cost of evaluating the comparison
+-- function. Laws:
+-- 
+-- > forall c x0 . insertBy c x0 [] == [x0]
+-- > forall c x0 x xs | x >= x0 . 
+-- >   insertBy c x0 (x : xs) == x0 : x : xs
+-- > forall c x0 x xs | x < x0 . 
+-- >   insertBy c x0 (x : xs) == x : insertBy c x0 xs
+insertBy :: (a -> a -> Ordering) -> a -> [a] -> [a]
+insertBy c t xs =
+  let (l, r) = span ((== GT) . c t) xs in
+  l ++ [t] ++ r
+
+-- | Given a list of 'Ord' values, insert an element @x0@
+-- into the list at the last position where it is still less
+-- than or equal to the next element. If no element is
+-- greater than or equal to @x0@, insert it at the end. This
+-- function is a special case of 'insertBy'' with 'compare'
+-- as the comparison function.  /O(n)/. Laws:
+-- 
+-- > forall x0 xs . insert' x0 xs == insertBy' compare x0 xs
 insert' :: Ord a => a -> [a] -> [a]
 insert' = insertBy' compare
+
+-- | Given a list of 'Ord' values, insert an element @x0@
+-- into the list at the last position where it is still less
+-- than or equal to the next element. If no elements are
+-- greater than or equal to @x0@, insert it at the end. Some
+-- examples:
+-- 
+-- > insertBy' compare 2 [] == [2]
+-- > insertBy' compare 2 [1] == [1, 2]
+-- > insertBy' (comparing fst) (2, 0) [(1, 1), (2, 1), (3, 1)] ==
+-- >   [(1, 1), (2, 0), (2, 1), (3, 1)]
+-- > insertBy' compare 2 [1, 3, 1, 3] == [1, 3, 1, 2, 3]
+-- > insertBy' compare 2 [3..] == _|_
+-- 
+-- This 'insertBy'' actually follows the contract from the
+-- standard library documentation (inasmuch as that contract
+-- can be read to specify anything sensible.) It will
+-- generally be less efficient than 'insertBy', as it
+-- needs to traverse the whole list to check for further
+-- insertion points.
+-- 
+-- /O(n)/. Laws:
+-- 
+-- > forall c x0 . insertBy' c x0 [] == [x0]
+-- > forall c x0 x xs | x <= x0 . 
+-- >   insertBy c x0 (xs ++ [x]) == xs ++ [x, x0]
+-- > forall c x0 x xs | x > x0 . 
+-- >   insertBy c x0 (xs ++ [x]) == insertBy c x0 xs ++ [x]
+insertBy' :: (a -> a -> Ordering) -> a -> [a] -> [a]
+insertBy' c x0 xs0 =
+  let ~(xs1, xs2) = spanEnd (\x -> x `c` x0 /= LT) xs0 in
+  xs1 ++ [x0] ++ xs2
 
 -- This should be in the standard library anyhow.
 mergeBy :: (a -> a -> Ordering) -> [a] -> [a] -> [a]
@@ -2087,35 +2163,6 @@ sortBy c xs0 =
               Just (xs, [])
             g (xs1 : xs2 : xs) =
               Just (mergeBy c xs1 xs2, xs)
-
--- This version of insertBy actually follows the contract
--- from the documentation (inasmuch as that contract can be
--- read to specify anything sensible.) This version is
--- maximally productive. It is non-recursive. It is ugly and
--- kludgy.
-insertBy :: (a -> a -> Ordering) -> a -> [a] -> [a]
-insertBy c t xs0 =
-  let (xs1, xs2) = span (\x -> t `c` x /= LT) xs0 in
-  let xs2' =
-        case foldr f (Left []) xs2 of
-          Left xs -> t : xs
-          Right xs -> xs in
-  xs1 ++ xs2'
-  where
-    f x (Left []) = Left [x]
-    f x (Left [x']) | t `c` x' /= LT = Right [x, x', t]
-    f x (Left xs) | t `c` x /= LT = Right (x : t : xs)
-    f x (Left xs) = Left (x : xs)
-    f x (Right xs) = Right (x : xs)
-
--- This version of insertBy agrees with the standard
--- library, which inserts in the first possible location
--- rather than the last. (This is bug #7421 in the GHC
--- Trac.)
-insertBy' :: (a -> a -> Ordering) -> a -> [a] -> [a]
-insertBy' c t xs =
-  let (l, r) = span ((== GT) . c t) xs in
-  l ++ [t] ++ r
 
 maximumBy :: (a -> a -> Ordering) -> [a] -> a
 maximumBy c xs =
