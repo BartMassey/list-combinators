@@ -112,6 +112,7 @@ module Data.List.Combinator (
   unfold,
   unfoldr,
   unfoldl,
+  unfoldl',
   -- * Sublists
   -- ** Extracting Sublists
   take,
@@ -339,6 +340,7 @@ xs ++ ys = foldr (:) ys xs
 -- > forall l : List a | not (null l) . (head l : tail l) == l
 head :: [a] -> a
 head (x : _) = x
+head _ = error "head: empty list"
 
 -- | Return the last element of a non-empty
 -- list. Strict. /O(1)/. Laws:
@@ -347,6 +349,7 @@ head (x : _) = x
 -- >   init l ++ [tail l] == l
 last :: [a] -> a
 last (x : xs) = foldl (\_ y -> y) x xs
+last _ = error "last: empty list"
 
 -- | Return the second and subsequent elements of a
 -- non-empty list. /O(1)/. Laws:
@@ -354,6 +357,7 @@ last (x : xs) = foldl (\_ y -> y) x xs
 -- > forall l : List a | not (null l) . (head l : tail l) == l
 tail :: [a] -> [a]
 tail (_ : xs) = xs
+tail _ = error "tail: empty list"
 
 -- | Return all the elements of a non-empty list except the
 -- last one. /O(1)/. Laws:
@@ -364,7 +368,7 @@ init :: [a] -> [a]
 init xs0 =
   foldr f [] xs0
   where
-    f x [] = []
+    f _ [] = []
     f x as = (x : as)
 
 -- | Return 'True' on the empty list, and 'False'
@@ -480,7 +484,7 @@ transpose xss =
           Just (foldr g ([], []) xs)
       where
         xs = filter (not . null) a
-        g (y : ys) (h, t) = (y : h, ys : t)
+        g ~(y : ys) (h, t) = (y : h, ys : t)
 
 -- | The 'subsequences' function returns the list of all
 -- subsequences (ordered sublists) of its argument, in no
@@ -541,6 +545,8 @@ foldl f a0 =
   where
     f' x (l, r) = (f l x, r)
 
+-- XXX The strictness isn't right here currently, maybe?
+
 -- | The semantics of 'foldl'' those of 'foldl', except that
 -- 'foldl'' eagerly applies @f@ at each step. This gains
 -- some operational efficiency, but makes 'foldl'' only
@@ -550,16 +556,7 @@ foldl f a0 =
 -- the same as those for 'foldl' up to a condition on @f@,
 -- which is not given here.
 foldl' :: (a -> b -> a) -> a -> [b] -> a
-foldl' f a0 xs0 =
-  g a0 xs0
-  where
-    g a [] = a
-    g a (x : xs) =
-      (g $! ((f $! a) $! x)) $! xs
-
--- XXX The strictness isn't right here currently, maybe?
-foldl'_0 :: (a -> b -> a) -> a -> [b] -> a
-foldl'_0 f a0 =
+foldl' f a0 =
   fst . fold f' (a0, undefined)
   where
     f' x (l, r) = ((f $! l) $! x, r)
@@ -573,11 +570,13 @@ foldl'_0 f a0 =
 -- > forall f x xs . foldl1 f (x : xs) == foldl f x xs
 foldl1 :: (a -> a -> a) -> [a] -> a
 foldl1 f (x : xs) = foldl f x xs 
+foldl1 _ _ = error "foldl1: empty list"
 
 -- | 'foldl1'' bears the same relation to 'foldl1' that
 -- 'foldl'' bears to 'foldl'.
 foldl1' :: (a -> a -> a) -> [a] -> a
 foldl1' f (x : xs) = foldl' f x xs 
+foldl1' _ _ = error "foldl1': empty list"
 
 -- | 'foldr', applied to a binary operator @f@, a starting value (typically
 -- the right-identity of the operator) @a@, and a list, reduces the list
@@ -796,6 +795,7 @@ scanl f a0 =
 -- > forall f x xs . scanl1 f (x : xs) == scanl f x xs
 scanl1 :: (a -> a -> a) -> [a] -> [a]
 scanl1 f (x : xs) = scanl f x xs
+scanl1 _ _ = error "scanl1: empty list"
 
 -- | The 'scanr' function is similar to 'foldr', in that
 -- 'scanr' passes an accumulator from right to left.
@@ -812,6 +812,7 @@ scanr f a0 xs =
   foldr f' [a0] xs
   where
     f' x as@(a : _) = f x a : as
+    f' _ _ = error "scanr: internal error: fell off end"
 
 -- | The 'scanr1' function is to 'scanr' as 'foldr1' is to 'foldr'.
 -- /O(n)/ plus the cost of evaluating @f@. Laws:
@@ -1080,7 +1081,7 @@ splitAt n0 xs =
 -- >   splits xs == zipWith splitAt [0..n] (repeat xs)
 splits :: [a] -> [([a], [a])]
 splits xs0 =
-  snd $ fold f (0, [(xs0, [])]) xs0
+  snd $ fold f (0 :: Integer, [(xs0, [])]) xs0
   where
     f _ (n, xs) = (n + 1, splitAt n xs0 : xs)
 
@@ -1308,7 +1309,7 @@ stripSuffixBy eq ps xs0 =
         _ -> False
       where
         f (_, []) _ = (False, [])
-        f (ok, (y : ys)) x = (ok && eq x y, ys)
+        f (ok, (y : ys')) x = (ok && eq x y, ys')
 
 -- | The 'group' function takes a list and returns a
 -- partition of that list such that elements @x1@ and @x2@
@@ -1387,6 +1388,7 @@ tails xs =
   foldr f [[]] xs
   where
     f x as@(a : _) = (x : a) : as
+    f _ _ = error "tails: internal error: fell off end"
 
 -- | The 'isPrefixOf' function takes two lists and returns
 -- 'True' iff the first list is a prefix of the second.
@@ -1764,17 +1766,17 @@ unzip5 =
 -- | Unzip a 6-tuple into 6 lists.
 unzip6 :: [(a, b, c, d, e, f)] -> ([a], [b], [c], [d], [e], [f])
 unzip6 =
-  foldr f ([], [], [], [], [], [])
+  foldr f0 ([], [], [], [], [], [])
   where
-    f (a, b, c, d, e, f) (as, bs, cs, ds, es, fs) = 
+    f0 (a, b, c, d, e, f) (as, bs, cs, ds, es, fs) = 
       (a : as, b : bs, c : cs, d : ds, e : es, f : fs)
 
 -- | Unzip a 7-tuple into 7 lists.
 unzip7 :: [(a, b, c, d, e, f, g)] -> ([a], [b], [c], [d], [e], [f], [g])
 unzip7 =
-  foldr f ([], [], [], [], [], [], [])
-  where
-    f (a, b, c, d, e, f, g) (as, bs, cs, ds, es, fs, gs) = 
+  foldr f0 ([], [], [], [], [], [], [])
+  where    
+    f0 (a, b, c, d, e, f, g) (as, bs, cs, ds, es, fs, gs) = 
       (a : as, b : bs, c : cs, d : ds, e : es, f : fs, g : gs)
 
 -- | The 'lines' function breaks a string up into a list of
@@ -2168,6 +2170,7 @@ sortBy c xs0 =
   case fst $ unfold f (map (: []) xs0, undefined) of
     [] -> []
     [xs] -> xs
+    _ -> error "sort: internal error: incomplete merge"
   where
     f ([], _) = ([], Nothing)
     f ([xs], _) = ([xs], Nothing)
