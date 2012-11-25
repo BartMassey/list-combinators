@@ -1027,7 +1027,7 @@ unfoldl' f a0 =
 -- > forall n (x : xs) | n > 0 . 
 -- >   take n (x : xs) == x : take (n - 1) xs
 take :: Integral b => b -> [a] -> [a]
-take n = fst . splitAt n
+take n xs = fst $ splitAt n xs
 
 -- | 'drop' @n xs@ returns the suffix of @xs@
 -- after the first @n@ elements, or @[]@ if @n > 'length' xs@.
@@ -1049,7 +1049,7 @@ take n = fst . splitAt n
 -- > forall n (x : xs) | n > 0 . 
 -- >   drop n (x : xs) == drop (n - 1) xs
 drop :: Integral b => b -> [a] -> [a]
-drop n = snd . splitAt n
+drop n xs = snd $ splitAt n xs
 
 -- | 'splitAt' @n xs@ returns a tuple where first element is @xs@ prefix of
 -- length @n@ and second element is the remainder of the list:
@@ -1069,9 +1069,13 @@ drop n = snd . splitAt n
 -- 
 -- > forall n xs . splitAt n xs = (take n xs, drop n xs)
 splitAt :: Integral b => b -> [a] -> ([a], [a])
+splitAt n0 xs | n0 < 0 = 
+  ([], xs)
 splitAt n0 xs =
-  let ~(l, r) = span ((< n0) . fst) $ zip [0..] xs in
-  (map snd l, map snd r)
+  snd $ fold f (n0, ([], [])) xs
+  where
+    f x (0, ~(_, rs)) = (0, ([], x : rs))
+    f x ~(n, ~(ls, rs)) = (n - 1, (x : ls, rs))
 
 -- | Returns a list of all possible splits of its list
 -- argument as produced by 'splitAt' in order of
