@@ -49,6 +49,11 @@
 -- the result of the function will be built up in such a way
 -- that each piece will be ready for consumption as early as
 -- logically possible.
+-- 
+-- Each function has "laws" that are intended to specify its behavior.
+-- The laws are currently only intended to cover the case of finite lists;
+-- they may or may not work in the presence of infinite lists even if
+-- the function being specified is maximally productive.
 -----------------------------------------------------------------------------
 
 
@@ -328,16 +333,15 @@ fold f lr0 xs0 =
 --
 -- /O(m)/. Laws:
 -- 
--- > forall xs . xs ++ [] == [] ++ xs == xs
+-- > forall xs . [] ++ xs == xs
 -- > forall x xs ys . x : (xs ++ ys) == (x : xs) ++ ys
--- > forall xs ys zs . (xs ++ ys) ++ zs == xs ++ (ys ++ zs)
 (++) :: [a] -> [a] -> [a]
 xs ++ ys = foldr (:) ys xs
 
 -- | Return the first element of a non-empty
 -- list. /O(1)/. Laws:
 -- 
--- > forall l : List a | not (null l) . (head l : tail l) == l
+-- > forall l . not (null l) . (head l : tail l) == l
 head :: [a] -> a
 head (x : _) = x
 head _ = error "head: empty list"
@@ -345,8 +349,7 @@ head _ = error "head: empty list"
 -- | Return the last element of a non-empty
 -- list. Strict. /O(1)/. Laws:
 -- 
--- > forall l | (exists k : Integer . k > 1 && length l == k) . 
--- >   init l ++ [tail l] == l
+-- > forall x xs . last (xs ++ [x]) == x
 last :: [a] -> a
 last (x : xs) = foldl (\_ y -> y) x xs
 last _ = error "last: empty list"
@@ -354,7 +357,7 @@ last _ = error "last: empty list"
 -- | Return the second and subsequent elements of a
 -- non-empty list. /O(1)/. Laws:
 -- 
--- > forall l : List a | not (null l) . (head l : tail l) == l
+-- > forall x xs . tail (x : xs) == xs
 tail :: [a] -> [a]
 tail (_ : xs) = xs
 tail _ = error "tail: empty list"
@@ -362,8 +365,7 @@ tail _ = error "tail: empty list"
 -- | Return all the elements of a non-empty list except the
 -- last one. /O(1)/. Laws:
 -- 
--- > forall l | (exists k : Integer . k > 1 && length l == k) . 
--- >   init l ++ [tail l] == l
+-- > forall x xs . init (xs ++ [x]) == xs
 init :: [a] -> [a]
 init xs0 =
   foldr f [] xs0
@@ -384,8 +386,7 @@ null  _ = False
 -- 'genericLength'. Strict. /O(n)/. Laws:
 -- 
 -- > length [] == 0
--- > forall x xs | (exists k . length xs <= k) . 
--- >   length (x : xs) == 1 + length xs
+-- > forall x xs . length (x : xs) == 1 + length xs
 length :: [a] -> Integer
 length xs = genericLength xs
 
