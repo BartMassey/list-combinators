@@ -470,7 +470,7 @@ intersperse s (x : xs) =
 -- 'separate'' that handles the empty list slightly
 -- differently. New. /O(n)/. Laws:
 -- 
--- > forall t x xs . separate t (x : xs) == separateBy (== t) (x : xs)
+-- > forall t xs . separate t xs == separateBy (== t) xs
 separate :: Eq a => a -> [a] -> [[a]]
 separate t xs = separateBy (== t) xs
 
@@ -534,6 +534,60 @@ separateBy' p xs =
   where
     f x a | p x = [] : a
     f x ~(ys : yss) = (x : ys) : yss
+
+-- | The 'terminate' function takes an element and a list;
+-- it treats the element as a \"field terminator\" and
+-- splits the list into fields (sublists) before every occurrence.
+-- If the input list is empty, no fields are returned.
+-- If the input list is nonempty but does not end with a
+-- terminator, an implicit final terminator is assumed.
+-- Some examples:
+-- 
+-- > terminate ';' "a;b;c;d;" == ["a","b","c","d"]
+-- > terminate ';' "a;b" == ["a","b"]
+-- > terminate ';' ";" == [""]
+-- > terminate ';' [] == []
+-- 
+-- 'terminate' is a special case of 'terminateBy' with
+-- predicate @(== t)@. New. /O(n)/. Laws:
+-- 
+-- > forall t xs . terminate t xs == terminateBy (== t) xs
+terminate :: Eq a => a -> [a] -> [[a]]
+terminate t xs = terminateBy (== t) xs
+
+-- | The 'terminateBy' function takes a predicate @p@ and a list;
+-- it treats any  element for which @p@ holds as a \"field terminator\" and
+-- splits the list into fields (sublists) before each such occurrence.
+-- If the input list is empty, no fields are returned.
+-- If the input list is nonempty but does not end with a
+-- terminator, an implicit final terminator is assumed.
+-- Some examples:
+-- 
+-- > terminateBy (`elem` ";.") "a;b." == ["a","b"]
+-- > terminateBy (`elem` ";.") "a;b" == ["a","b"]
+-- > terminateBy (`elem` ";.") "" == []
+-- 
+-- New. /O(n)/. Laws:
+-- 
+-- > forall p . terminateBy p [] = []
+-- > forall p x | p x . terminateBy p [x] == [[]]
+-- > forall p x | not (p x) . terminateBy p [x] == [[x]]
+-- > forall p x1 x2 xs yss | 
+-- >  p x1 && yss == terminateBy p (x2 : xs) .
+-- >   terminateBy p (x1 : x2 : xs) == [] : yss
+-- > forall p x1 x2 xs ys yss | 
+-- >  not (p x1) && (ys : yss) == terminateBy p (x2 : xs) .
+-- >   terminateBy p (x1 : x2 : xs) == (x1 : ys) : yss
+terminateBy :: (a -> Bool) -> [a] -> [[a]]
+terminateBy p xs =
+  case foldr f Nothing xs of
+    Nothing -> []
+    Just ys -> ys
+  where
+    f x Nothing | p x = Just [[]]
+    f x Nothing = Just [[x]]
+    f x (Just a) | p x = Just ([] : a)
+    f x (Just ~(ys : yss)) = Just ((x : ys) : yss)
 
 -- This intercalate is taken directly from Data.List.
 
@@ -1921,25 +1975,12 @@ unzip7 =
 -- character will not cause an empty string at the end of
 -- the list, unless the input string consists entirely of
 -- newlines. The resulting strings do not contain newlines.
--- /O(n)/. Laws:
+-- /O(n)/. 'lines' is a special case of 'terminate' with 
+-- terminator '\n'. Laws:
 -- 
--- > lines "" == []
--- > lines "\n" == []
--- > forall xs xss | xss == lines xs .
--- >   lines ('\n' : xs) == "" : xss
--- > forall x xs xs1 xss | x != '\n' && (xs1 : xss) == lines xs .
--- >   lines (x : xs) == (x : xs1) : xss
+-- > forall xs . lines xs == terminate '\n' xs
 lines :: String -> [String]
-lines "" = []
-lines s =
-  unfoldr f (Just s)
-  where
-    f Nothing = Nothing
-    f (Just cs) =
-      let (l, r) = break (== '\n') cs in
-      case r of
-        ('\n' : ls@(_ : _)) -> Just (l, Just ls)
-        _ -> Just (l, Nothing)
+lines xs = terminate '\n' xs
 
 -- | The 'words' function breaks a string up into a list of
 -- words at sequences of white space (as defined by
