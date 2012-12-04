@@ -1965,13 +1965,15 @@ words s0 =
         (_, ws) = span isSpace s
 
 -- | The 'unlines' function appends a newline to each
--- element | of its string list argument and concatenates
+-- element of its string list argument and concatenates
 -- the result. /O(n)/. Laws:
 -- 
--- > forall xss . unlines xss == intercalate "\n" xss ++ "\n"
+-- > unlines [] == ""
+-- > forall xs xss . 
+-- >   unlines (xs : xss) == concatMap (++ "\n") (xs : xss)
 unlines :: [String] -> String
 unlines [] = ""
-unlines ls = intercalate "\n" ls ++ "\n"
+unlines xss = concatMap (++ "\n") xss
 
 -- | The 'unwords' function places a space character between each
 -- element of its string list argument and concatenates
@@ -1979,7 +1981,7 @@ unlines ls = intercalate "\n" ls ++ "\n"
 -- 
 -- > forall xss . unwords xss == intercalate " " xss
 unwords :: [String] -> String
-unwords ws = intercalate " " ws
+unwords xss = intercalate " " xss
 
 -- | The 'nub' function removes duplicate elements from a
 -- list.  In particular, it keeps only the first occurrence
