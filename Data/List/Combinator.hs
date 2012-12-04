@@ -449,7 +449,8 @@ reverse xs = foldl' (\a x -> x : a) [] xs
 -- >   intersperse t (x : xs) == x : intersperse t xs
 intersperse :: a -> [a] -> [a]
 intersperse _ [] = []
-intersperse s xs = tail $ foldr (\x a -> s : x : a) [] xs
+intersperse s (x : xs) = 
+  x : foldr (\x a -> s : x : a) [] xs
 
 -- This intercalate is taken directly from Data.List.
 
