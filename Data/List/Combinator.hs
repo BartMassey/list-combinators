@@ -73,6 +73,8 @@ module Data.List.Combinator (
   map,
   reverse,
   intersperse,
+  separate,
+  separate',
   intercalate,
   transpose,
   subsequences,
@@ -195,6 +197,8 @@ module Data.List.Combinator (
   insert,
   insert',
   -- * The \"By\" Operations
+  separateBy,
+  separateBy',
   elemBy,
   notElemBy,
   nubBy,
@@ -450,7 +454,86 @@ reverse xs = foldl' (\a x -> x : a) [] xs
 intersperse :: a -> [a] -> [a]
 intersperse _ [] = []
 intersperse s (x : xs) = 
-  x : foldr (\x a -> s : x : a) [] xs
+  x : foldr (\x' a -> s : x' : a) [] xs
+
+-- | The 'separate' function takes an element and a list;
+-- it treats the element as a \"field separator\" and
+-- splits the list into fields (sublists) at every occurrence.
+-- If the input list is empty, no fields are returned.
+-- Some examples:
+-- 
+-- > separate ',' ",a,b,c,d," == ["","a","b","c","d",""]
+-- > separate ',' "" == []
+-- 
+-- 'separate' is a special case of 'separateBy' with
+-- predicate @(== t)@. It is also a special case of
+-- 'separate'' that handles the empty list slightly
+-- differently. New. /O(n)/. Laws:
+-- 
+-- > forall t x xs . separate t (x : xs) == separateBy (== t) (x : xs)
+separate :: Eq a => a -> [a] -> [[a]]
+separate t xs = separateBy (== t) xs
+
+-- | The 'separateBy' function takes a predicate @p@ and a list;
+-- it treats any element of the list for which @p@
+-- returns true as a \"field separator\" and splits the list
+-- into fields (sublists) at each such occurrence.  If the
+-- input list is empty, no fields are returned.  Some
+-- examples:
+-- 
+-- > separateBy (not . isAlpha) "&a+b$" == ["","a","b",""]
+-- > separateBy (not . isAlpha) "" == []
+-- 
+-- 'separateBy' is a special case of 'separateBy'' that
+-- handles the empty list slightly
+-- differently. New. /O(n)/. Laws:
+-- 
+-- > forall p . separateBy p [] = []
+-- > forall p x xs . separateBy p (x : xs) = separateBy' p (x : xs)
+separateBy :: (a -> Bool) -> [a] -> [[a]]
+separateBy _ [] = []
+separateBy p xs = separateBy' p xs
+
+-- | The 'separate'' function takes an element and a list;
+-- it treats the element as a \"field separator\" and
+-- splits the list into fields (sublists) at every occurrence.
+-- If the input list is empty, a single empty field is returned.
+-- Some examples:
+-- 
+-- > separate' ',' ",a,b,c,d," == ["","a","b","c","d",""]
+-- > separate' ',' "" == [""]
+-- 
+-- 'separate'' is a special case of 'separateBy'' with
+-- predicate @(== t)@. New. /O(n)/. Laws:
+-- 
+-- > forall t . separate t [] == []
+separate' :: Eq a => a -> [a] -> [[a]]
+separate' t xs = separateBy' (== t) xs
+
+-- | The 'separateBy'' function takes a predicate @p@ and a list;
+-- it treats any element of the list for which @p@
+-- returns true as a \"field separator\" and splits the list
+-- into fields (sublists) at each such occurrence.  If the
+-- input list is empty, a single empty field is returned.  Some
+-- examples:
+-- 
+-- > separateBy (not . isAlpha) "&a+b$" == ["","a","b",""]
+-- > separateBy (not . isAlpha) "" == [""]
+-- 
+-- New. /O(n)/. Laws:
+-- 
+-- > forall p . separateBy' p [] = [[]]
+-- > forall p x xs | p x . 
+-- >   separateBy' p (x : xs) == [] : separateBy' p xs
+-- > forall p x xs ys yss | 
+-- >  not (p x) && (ys : yss) == separateBy' p xs .
+-- >   separateBy' p (x : xs) = (x : ys) : yss
+separateBy' :: (a -> Bool) -> [a] -> [[a]]
+separateBy' p xs =
+  foldr f [[]] xs
+  where
+    f x a | p x = [] : a
+    f x ~(ys : yss) = (x : ys) : yss
 
 -- This intercalate is taken directly from Data.List.
 
