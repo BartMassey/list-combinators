@@ -75,6 +75,7 @@ module Data.List.Combinator (
   intersperse,
   separate,
   separate',
+  terminate,
   intercalate,
   transpose,
   subsequences,
@@ -199,6 +200,7 @@ module Data.List.Combinator (
   -- * The \"By\" Operations
   separateBy,
   separateBy',
+  terminateBy,
   elemBy,
   notElemBy,
   nubBy,
