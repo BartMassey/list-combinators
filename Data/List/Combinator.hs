@@ -878,7 +878,7 @@ mapAccumL f a0 =
   fold f' (a0, [])
   where
     f' x ~(l, rs) =
-      let ~(l', r') = f l x in
+      let (l', r') = f l x in
       (l', r' : rs)
 
 -- | The 'mapAccumR' function behaves like a combination of
@@ -1112,7 +1112,7 @@ splitAt n0 xs =
   snd $ fold f (n0, ([], [])) xs
   where
     f x (0, ~(_, rs)) = (0, ([], x : rs))
-    f x ~(n, ~(ls, rs)) = (n - 1, (x : ls, rs))
+    f x (n, ~(ls, rs)) = (n - 1, (x : ls, rs))
 
 -- | Returns a list of all possible splits of its list
 -- argument as produced by 'splitAt' in order of
@@ -1250,7 +1250,7 @@ span :: (a -> Bool) -> [a] -> ([a], [a])
 span p xs =
   snd $ fold f (True, ([], [])) xs
   where
-    f x ~(b, ~(l, r))
+    f x (b, ~(l, r))
       | b && p x = (True, (x : l, r))
       | otherwise = (False, ([], x : r))
 
@@ -1948,7 +1948,7 @@ delete = deleteBy (==)
 -- >   deleteBy p x xs == x : deleteBy p xs
 deleteBy :: (a -> a -> Bool) -> a -> [a] -> [a]
 deleteBy p x0 xs0 =
-  let ~(xs, ys) = break (p x0) xs0 in
+  let (xs, ys) = break (p x0) xs0 in
   xs ++ safeTail ys
   where
     safeTail [] = []
@@ -2247,5 +2247,5 @@ insert' = insertBy' compare
 -- >   insertBy c x0 (xs ++ [x]) == insertBy c x0 xs ++ [x]
 insertBy' :: (a -> a -> Ordering) -> a -> [a] -> [a]
 insertBy' c x0 xs0 =
-  let ~(xs1, xs2) = spanEnd (\x -> x `c` x0 /= LT) xs0 in
+  let (xs1, xs2) = spanEnd (\x -> x `c` x0 /= LT) xs0 in
   xs1 ++ [x0] ++ xs2
