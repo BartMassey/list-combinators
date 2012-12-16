@@ -19,8 +19,8 @@
 --
 -- The documentation and a bit of the implementation are
 -- either taken from or inspired by the 'base' 'Data.List'
--- implementaiton of GHC. However, this is not a lightly-hacked 
--- 'Data.List:
+-- implementation of GHC. However, this is not a
+-- lightly-hacked 'Data.List':
 -- 
 --   * The documentation has been substantially rewritten to
 --   provide a more accurate description
@@ -29,8 +29,9 @@
 --   reimplemented, with the goal of eliminating as many
 --   recursive constructions as possible.  Most primitives
 --   are now implemented in terms of each other; the
---   remaining few are implemented in terms of generalized
---   'fold' and 'unfold' operations.
+--   remaining few are implemented in terms of a generalized
+--   'unfold' operation and a 'fold' operation derived from
+--   it.
 -- 
 --   * The handling of primitives involving numbers has
 --   changed to use 'Integer' rather than 'Int' as the
@@ -59,6 +60,8 @@
 
 module Data.List.Combinator (
   module Prelude,
+  -- * Linear Recursion
+  unfold,
   -- * Basic Functions
   (++),
   head,
@@ -117,7 +120,6 @@ module Data.List.Combinator (
   replicate,
   cycle,
   -- ** Unfolding
-  unfold,
   unfoldr,
   unfoldl,
   unfoldl',
@@ -286,17 +288,37 @@ import Data.Char (isSpace)
 
 -- XXX Need to write laws for this.
 
+-- | Given an initial left and right accumulator and a
+-- function that steps the accumulators forward from the
+-- left and right as with 'fold', keep stepping until the
+-- function indicates completion by returning 'Nothing' on
+-- the right. /O(n)/ where /n/ is the number of unfolding
+-- steps, plus the cost of evaluating the folding function.
+-- 
+-- This abstraction of 'fold' is a bidirectional
+-- generalization of 'unfoldr': both are written as
+-- 'unfold's.
+unfold :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
+unfold f (l, r) =
+  let (l1, mr1) = f (l, r2)
+      (l2, r2) = unfold f (l1, r) in
+  case mr1 of
+    Nothing -> (l1, r)
+    Just r1 -> (l2, r1)
+
+
+-- XXX Need to write laws for this.
+
 -- | Given a function that accepts an element and a left and
 -- right context and produces a new left and right context,
 -- and given an initial left and right context and a list,
 -- run the function on each element of the list with the
 -- appropriate context.
 -- 
--- The 'fold' operation generalizes a
--- number of things from 'Data.List', including 'foldl' and
--- 'foldr'. It works by allowing `f` to work with both state
--- accumulated from the left and state built up from the
--- right simultaneously.
+-- The 'fold' operation generalizes a number of things from
+-- 'Data.List', including 'foldl' and 'foldr'. It works by
+-- allowing `f` to work with both state accumulated from the
+-- left and state built up from the right simultaneously.
 -- 
 -- @'fold' f (l, r)@ is fully lazy if `f` is fully lazy
 -- on `l` and `r`, strict if at most one of `l` and `r` is
@@ -324,14 +346,14 @@ import Data.Char (isSpace)
 -- this library to be worth paying attention to. /O(n)/ plus
 -- the cost of evaluating the folding function.
 fold :: (x -> (l, r) -> (l, r)) -> (l, r) -> [x] -> (l, r)
-fold f lr0 xs0 =
-  g lr0 xs0
+fold f (l0, r0) xs0 =
+  let ((l, _), r) = unfold g ((l0, xs0), r0) in
+  (l, r)
   where
-    g lr [] = lr
-    g (l, r) (x : xs) =
-      let (l1, r1) = f x (l, r2)
-          (l2, r2) = g (l1, r) xs  in
-      (l2, r1)
+    g ((l, []), r) = ((l, undefined), Nothing)
+    g ((l, x : xs), r) =
+      let (l', r') = f x (l, r) in
+      ((l', xs), Just r')
 
 -- | Append two lists, i.e.,
 --
@@ -1086,25 +1108,6 @@ replicate n = take n . repeat
 cycle :: [a] -> [a]
 cycle xs =
   let ys = xs ++ ys in ys
-
--- XXX This generalized fold may be enough to write fold. I don't know.
--- XXX Need to write laws for this.
-
--- | This abstraction of 'fold' is a bidirectional
--- generalization of 'unfoldr'. Given an initial left and
--- right accumulator and a function that steps the
--- accumulators forward from the left and right as with
--- 'fold', keep stepping until the function indicates
--- completion by returning 'Nothing' on the right. /O(n)/
--- where /n/ is the number of unfolding steps, plus the cost
--- of evaluating the folding function.
-unfold :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
-unfold f (l, r) =
-  let (l1, mr1) = f (l, r2)
-      (l2, r2) = unfold f (l1, r) in
-  case mr1 of
-    Nothing -> (l1, r)
-    Just r1 -> (l2, r1)
 
 -- XXX Need to write laws for this.
 
