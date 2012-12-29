@@ -333,8 +333,8 @@ lr f (l, r) =
 -- and examines these elements, the function is run to produce
 -- these outputs.
 -- 
--- There is probably a need for versions of these functions
--- strict in the left context: call it 'fold'' .
+-- There is probably a need for a version of this function
+-- element-strict in the left context: call it 'fold'' .
 -- 
 -- Compare this 'fold' with Noah Easterly's "bifold" discussed
 -- a while back on Haskell-Cafe
