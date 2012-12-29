@@ -30,8 +30,7 @@
 --   recursive constructions as possible.  Most primitives
 --   are now implemented in terms of each other; the
 --   remaining few are implemented in terms of a generalized
---   'unfold' operation and a 'fold' operation derived from
---   it.
+--   linear recursion 'lr' operation.
 -- 
 --   * The handling of primitives involving numbers has
 --   changed to use 'Integer' rather than 'Int' as the
@@ -39,7 +38,9 @@
 --   makes the Laws of these operations easier to use,
 --   presumably at the expense of performance.
 --   
---   * A few new primitives have been added.
+--   * Quite a few new primitives have been added, to
+--     fill holes in the library or just for symmetry
+--     with existing primitives.
 --
 -- The result of this work is a library that is likely to be
 -- less performant than the GHC 'base' library. However, it
@@ -51,17 +52,17 @@
 -- that each piece will be ready for consumption as early as
 -- logically possible.
 -- 
--- Each function has "laws" that are intended to specify its behavior.
--- The laws are currently only intended to cover the case of finite lists;
--- they may or may not work in the presence of infinite lists even if
--- the function being specified is maximally productive.
+-- Each function has "laws" that are intended to specify its
+-- behavior.  The laws are currently only intended to cover
+-- the case of finite lists; they may or may not work in the
+-- presence of infinite lists even if the function being
+-- specified is maximally productive.
 -----------------------------------------------------------------------------
-
 
 module Data.List.Combinator (
   module Prelude,
   -- * Linear Recursion
-  unfold,
+  lr,
   -- * Basic Functions
   (++),
   head,
@@ -288,20 +289,21 @@ import Data.Char (isSpace)
 
 -- XXX Need to write laws for this.
 
--- | Given an initial left and right accumulator and a
--- function that steps the accumulators forward from the
--- left and right as with 'fold', keep stepping until the
--- function indicates completion by returning 'Nothing' on
--- the right. /O(n)/ where /n/ is the number of unfolding
--- steps, plus the cost of evaluating the folding function.
+-- | Generalized linear recursion.  Given an initial left
+-- and right accumulator and a function that steps the
+-- accumulators forward from the left and right as with
+-- 'fold', keep stepping until the function indicates
+-- completion by returning 'Nothing' on the right. /O(n)/
+-- where /n/ is the number of recursive steps, plus the cost
+-- of evaluating the folding function.
 -- 
 -- This abstraction of 'fold' is a bidirectional
 -- generalization of 'unfoldr': both are written as
--- 'unfold's.
-unfold :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
-unfold f (l, r) =
+-- 'lr's.
+lr :: ((l, r) -> (l, Maybe r)) -> (l, r) -> (l, r)
+lr f (l, r) =
   let (l1, mr1) = f (l, r2)
-      (l2, r2) = unfold f (l1, r) in
+      (l2, r2) = lr f (l1, r) in
   case mr1 of
     Nothing -> (l1, r)
     Just r1 -> (l2, r1)
@@ -347,10 +349,10 @@ unfold f (l, r) =
 -- the cost of evaluating the folding function.
 fold :: (x -> (l, r) -> (l, r)) -> (l, r) -> [x] -> (l, r)
 fold f (l0, r0) xs0 =
-  let ((l, _), r) = unfold g ((l0, xs0), r0) in
+  let ((l, _), r) = lr g ((l0, xs0), r0) in
   (l, r)
   where
-    g ((l, []), r) = ((l, undefined), Nothing)
+    g ((l, []), _) = ((l, undefined), Nothing)
     g ((l, x : xs), r) =
       let (l', r') = f x (l, r) in
       ((l', xs), Just r')
@@ -1140,7 +1142,7 @@ cycle xs =
 -- length of the produced list.
 unfoldr :: (a -> Maybe (b, a)) -> a -> [b]
 unfoldr f a0 =
-  snd $ unfold g (a0, [])
+  snd $ lr g (a0, [])
   where
     g (a, xs) =
       case f a of
@@ -1149,35 +1151,35 @@ unfoldr f a0 =
         Just (x, a') ->
           (a', Just (x : xs))
 
--- | An unfoldl is provided for completeness. New.
+-- | An 'unfoldl' is provided for completeness. New.
 -- Spine-strict. /O(n)/ plus the cost of evaluating the
 -- unfolding function. Laws:
 -- 
--- > forall f a . unfoldl f a == reverse (unfoldr (fmap swap . f) a)
+-- > forall f a . unfoldl f a == reverse (unfoldr (fmap flip f) a)
 unfoldl :: (a -> Maybe (a, b)) -> a -> [b]
 unfoldl f a0 =
-  snd $ fst $ unfold g ((a0, []), ())
+  snd $ fst $ lr g ((a0, []), undefined)
   where
     g ((a, xs), _) =
       case f a of
         Nothing -> 
           ((a, xs), Nothing)
         Just (a', x) ->
-          ((a', x : xs), Just ())
+          ((a', x : xs), Just undefined)
 
--- | An unfoldl' is provided for the same reasons as
--- 'foldl''.  Element-strict (but not spine-strict). /O(n)/
+-- | An 'unfoldl'' is provided for the same reasons as
+-- 'foldl''.  Element-strict and spine-strict. /O(n)/
 -- plus the cost of evaluating the unfolding function.
 unfoldl' :: (a -> Maybe (a, b)) -> a -> [b]
 unfoldl' f a0 =
-  snd $ fst $ unfold g ((a0, []), ())
+  snd $ fst $ lr g ((a0, []), undefined)
   where
     g ((a, xs), _) =
       case f a of
         Nothing -> 
           ((a `seq` a, xs), Nothing)
         Just (a', x) ->
-          ((a' `seq` a', x : xs), Just ())
+          ((a' `seq` a', x : xs), Just undefined)
 
 
 -- XXX Strictness bug:
@@ -2278,7 +2280,7 @@ sort = sortBy compare
 -- function. Strict. /O(n)/.
 sortBy :: (a -> a -> Ordering) -> [a] -> [a]
 sortBy c xs0 =
-  case fst $ unfold f (map (: []) xs0, undefined) of
+  case fst $ lr f (map (: []) xs0, undefined) of
     [] -> []
     [xs] -> xs
     _ -> error "sort: internal error: incomplete merge"
