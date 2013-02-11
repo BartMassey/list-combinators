@@ -11,3 +11,7 @@ a work-in-progress, with the entire library translated, but
 with a few weird inefficiencies and holes.
 
 Please see the comments in the source for details.
+
+There are a few preliminary Criterion benchmarks built as
+the "lcbench" executable. You may run them to see how
+abysmal performance is.
