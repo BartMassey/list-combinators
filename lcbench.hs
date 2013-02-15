@@ -11,8 +11,8 @@ import qualified Data.List.Combinator as LC
 import Data.List as L
 
 fbench :: (NFData a, NFData b) 
-       => String -> [(String, a)] -> (a -> b) -> IO Benchmark
-fbench name xs f = do
+       => [(String, a)] -> (String, a -> b) -> IO Benchmark
+fbench xs (name, f) = do
   bs <- mapM b xs
   return $ bgroup name bs
   where
@@ -37,16 +37,47 @@ intLL i1 i2 =
       (show i10, replicate i10 [1..i10])
 
 cf :: (NFData a, NFData b) 
-   => String -> [(String, a)] -> (a -> b) -> (a -> b) -> IO Benchmark
-cf s xs lf lcf = do
-  lbench <- fbench "L" xs lf
-  rbench <- fbench "LC" xs lcf
-  return $ bgroup s [lbench, rbench]
+   => String -> [(String, a)] -> [(String, a -> b)] -> IO Benchmark
+cf s xs fs = do
+  benches <- mapM (fbench xs) fs
+  return $ bgroup s benches
+
+filter_ :: (a -> Bool) -> [a] -> [a]
+filter_ p xs = fst $ partition_ p xs
+
+partition_ :: (a -> Bool) -> [a] -> ([a], [a])
+partition_ p xs =
+  L.foldr f ([], []) xs
+  where
+    f x ~(l, r)
+      | p x = (x : l, r)
+      | otherwise = (l, x : r)
+
+transpose_ :: [[a]] -> [[a]]
+transpose_ xss =
+  L.unfoldr f xss
+  where
+    f a 
+      | L.null xs  = Nothing
+      | otherwise =
+          Just (L.foldr g ([], []) xs)
+      where
+        xs = filter_ (not . L.null) a
+        g ~(y : ys) (h, t) = (y : h, ys : t)
 
 main :: IO ()
 main = do
-  foldrB <- cf "foldr" (intL 4 6) (L.foldr (:) []) (LC.foldr (:) [])
-  sumB <- cf "sum" (intL 3 5) L.sum LC.sum
-  transposeB <- cf "transpose" (intLL 2 3) L.transpose LC.transpose
-  sortB <- cf "sort" (intL 3 5) L.sort LC.sort
-  defaultMain [foldrB, sumB, transposeB, sortB]
+  foldrB <- cf "foldr" (intL 4 6) [
+    ("L", L.foldr (:) []), 
+    ("LC", LC.foldr (:) []) ]
+  sumB <- cf "sum" (intL 3 5) [
+    ("L", L.sum), 
+    ("LC", LC.sum) ]
+  sortB <- cf "sort" (intL 3 5) [
+    ("L", L.sort), 
+    ("LC", LC.sort) ]
+  transposeB <- cf "transpose" (intLL 2 3) [
+    ("L", L.transpose),  
+    ("LC", LC.transpose), 
+    ("H", transpose_) ]
+  defaultMain [foldrB, sumB, sortB, transposeB]
