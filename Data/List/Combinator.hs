@@ -840,7 +840,7 @@ any p = or . map p
 -- | The 'all' function returns 'False' if its predicate
 -- argument @p@ applied to any element of its list argument
 -- returns 'False', and returns 'True' otherwise. This is
--- \"short-circuiting\" any, as with 'and'. /O(n)/ plus the
+-- \"short-circuiting\" all, as with 'and'. /O(n)/ plus the
 -- cost of evaluating @p@. Laws:
 -- 
 -- > forall p xs . all p xs == and (map p xs)
