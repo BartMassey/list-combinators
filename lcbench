@@ -1,1 +1,1 @@
-dist/build/lcbench/lcbench
+./dist-newstyle/build/x86_64-linux/ghc-8.8.4/list-combinators-0.1.0.0/x/lcbench/build/lcbench/lcbench
