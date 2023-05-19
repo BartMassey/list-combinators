@@ -50,5 +50,6 @@ library
   
 executable lcbench
   main-is:             lcbench.hs
-  build-depends:       base >=4.5&&<5, criterion >=0.6&&<2,
-                       deepseq >=1.3&&<2, list-combinators
+  build-depends:       base >=4.5&&<5, criterion >=0.6,
+                       deepseq >=1.3
+  other-modules:       Data.List.Combinator
