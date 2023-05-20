@@ -16,5 +16,5 @@ There are a few preliminary Criterion benchmarks built as
 the "lcbench" executable. You may run them to see how
 abysmal performance is.
 
-Note that Criterion 2.14.2 does not seem to build with GHC 9
-currently. GHC 8 seems to work.
+Note that Criterion 2.14.2 does not seem to build with GHC
+9.0.2. GHC 8 seems to work. Later versions may work.
